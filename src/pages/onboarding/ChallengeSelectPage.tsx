@@ -6,10 +6,10 @@ import { CHALLENGES } from '../../store/useAppStore'
 
 export function ChallengeSelectPage() {
   const navigate = useNavigate()
-  const hard = CHALLENGES.hard
+  const challenges = [CHALLENGES.hard, CHALLENGES.medium, CHALLENGES.soft]
 
   return (
-    <OnboardingLayout>
+    <OnboardingLayout showLogo={false}>
       <PageTitle title="Escolha um desafio" />
 
       <div className="flex gap-3 mb-6">
@@ -31,40 +31,45 @@ export function ChallengeSelectPage() {
         Ou escolha um desafio abaixo ↓
       </p>
 
-      <div
-        className="relative rounded-3xl overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
-        onClick={() => navigate('/onboarding/niveis')}
-      >
-        <img
-          src={hard.image}
-          alt={hard.name}
-          className="w-full h-56 object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <span className="inline-block bg-accent-orange text-white text-xs font-bold px-3 py-1 rounded-lg mb-2">
-            {hard.badge}
-          </span>
-          <h2 className="text-2xl font-bold mb-3">{hard.name}</h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {hard.tags.slice(0, 4).map((tag) => (
+      <div className="space-y-5 pb-4">
+        {challenges.map((c) => (
+          <div
+            key={c.id}
+            className="relative rounded-3xl overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
+          >
+            <img src={c.image} alt={c.name} className="w-full h-56 object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-5">
               <span
-                key={tag}
-                className="bg-black/60 text-xs text-neutral-300 px-2 py-1 rounded-full"
+                className={`inline-block text-xs font-bold px-3 py-1 rounded-lg mb-2 ${c.badgeColor}`}
               >
-                {tag}
+                {c.badge}
               </span>
-            ))}
+              <h2 className="text-2xl font-bold mb-3">{c.name}</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {c.tags.slice(0, 4).map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-black/60 text-xs text-neutral-300 px-2 py-1 rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <Button variant="secondary" className="!w-auto flex-1 !py-3">
+                  Personalizar
+                </Button>
+                <Button
+                  className="!w-auto flex-1 !py-3"
+                  onClick={() => navigate('/onboarding/niveis')}
+                >
+                  Iniciar
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" className="!w-auto flex-1 !py-3">
-              Personalizar
-            </Button>
-            <Button className="!w-auto flex-1 !py-3" onClick={() => navigate('/onboarding/niveis')}>
-              Iniciar
-            </Button>
-          </div>
-        </div>
+        ))}
       </div>
     </OnboardingLayout>
   )

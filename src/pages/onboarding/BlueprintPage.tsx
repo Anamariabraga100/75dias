@@ -5,8 +5,21 @@ import { useAppStore } from '../../store/useAppStore'
 
 export function BlueprintPage() {
   const navigate = useNavigate()
-  const { name } = useAppStore()
+  const { name, weakAreas, recommendedChallenge } = useAppStore()
   const displayName = name || 'você'
+  const capitalized = displayName.charAt(0).toUpperCase() + displayName.slice(1)
+
+  const challengeName =
+    recommendedChallenge === 'hard'
+      ? '75 Dias Hard'
+      : recommendedChallenge === 'soft'
+        ? '75 Dias Soft'
+        : '75 Dias Medium'
+
+  const weakText =
+    weakAreas.length >= 2
+      ? `${weakAreas[0]} e ${weakAreas[1]}`
+      : weakAreas[0] ?? 'consistência'
 
   return (
     <OnboardingLayout
@@ -16,9 +29,9 @@ export function BlueprintPage() {
         <div className="text-6xl mb-6">🗝️</div>
         <h1 className="text-3xl font-bold mb-6">Seu plano está pronto</h1>
         <QuoteBox>
-          {displayName.charAt(0).toUpperCase() + displayName.slice(1)}, com base na sua
-          avaliação, montamos uma jornada personalizada de 75 dias que ataca exatamente as
-          áreas onde você precisa de breakthrough.
+          {capitalized}, com base na sua rotina, montamos uma jornada de 75 dias focada em{' '}
+          {weakText}. Recomendamos começar com o {challengeName} — no ritmo certo para você
+          agora.
         </QuoteBox>
       </div>
     </OnboardingLayout>

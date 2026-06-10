@@ -6,6 +6,7 @@ import { IntroPage } from './pages/onboarding/IntroPage'
 import { NamePage } from './pages/onboarding/NamePage'
 import { GenderPage } from './pages/onboarding/GenderPage'
 import { GoalsPage } from './pages/onboarding/GoalsPage'
+import { RoutineQuestionPage } from './pages/onboarding/RoutineQuestionPage'
 import { SciencePage } from './pages/onboarding/SciencePage'
 import { ScorePage } from './pages/onboarding/ScorePage'
 import { CreatingPage } from './pages/onboarding/CreatingPage'
@@ -14,6 +15,8 @@ import { BlueprintPage } from './pages/onboarding/BlueprintPage'
 import { TransformationPage } from './pages/onboarding/TransformationPage'
 import { ContractPage } from './pages/onboarding/ContractPage'
 import { PaywallPage } from './pages/onboarding/PaywallPage'
+import { PaymentPage } from './pages/onboarding/PaymentPage'
+import { PaymentSuccessPage } from './pages/onboarding/PaymentSuccessPage'
 import { OfferPage } from './pages/onboarding/OfferPage'
 import { ChallengeSelectPage } from './pages/onboarding/ChallengeSelectPage'
 import { ChallengeLevelsPage } from './pages/onboarding/ChallengeLevelsPage'
@@ -32,6 +35,7 @@ export default function App() {
         <Route path="/onboarding/nome" element={<NamePage />} />
         <Route path="/onboarding/genero" element={<GenderPage />} />
         <Route path="/onboarding/objetivos" element={<GoalsPage />} />
+        <Route path="/onboarding/rotina/:step" element={<RoutineQuestionPage />} />
         <Route path="/onboarding/ciencia" element={<SciencePage />} />
         <Route path="/onboarding/resultado" element={<ScorePage />} />
         <Route path="/onboarding/criando" element={<CreatingPage />} />
@@ -40,6 +44,8 @@ export default function App() {
         <Route path="/onboarding/transformacao" element={<TransformationPage />} />
         <Route path="/onboarding/contrato" element={<ContractPage />} />
         <Route path="/onboarding/planos" element={<PaywallPage />} />
+        <Route path="/onboarding/pagamento" element={<PaymentPage />} />
+        <Route path="/onboarding/pagamento/sucesso" element={<PaymentSuccessPage />} />
         <Route path="/onboarding/oferta" element={<OfferPage />} />
         <Route path="/onboarding/desafio" element={<ChallengeSelectPage />} />
         <Route path="/onboarding/niveis" element={<ChallengeLevelsPage />} />

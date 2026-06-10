@@ -3,6 +3,7 @@ interface RadarChartProps {
   color: string
   glowColor?: string
   size?: number
+  axisValues?: number[]
 }
 
 const AXES = [
@@ -19,16 +20,17 @@ function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
 }
 
-export function RadarChart({ fillPercent, color, size = 280 }: RadarChartProps) {
+export function RadarChart({ fillPercent, color, size = 280, axisValues }: RadarChartProps) {
   const cx = size / 2
   const cy = size / 2
   const maxR = size * 0.32
-  const fillR = maxR * (fillPercent / 100)
 
   const gridLevels = [0.25, 0.5, 0.75, 1]
 
-  const fillPoints = AXES.map(({ angle }) => {
-    const pt = polarToCartesian(cx, cy, fillR, angle + 90)
+  const fillPoints = AXES.map(({ angle }, i) => {
+    const axisFill = axisValues?.[i] ?? fillPercent
+    const r = maxR * (axisFill / 100)
+    const pt = polarToCartesian(cx, cy, r, angle + 90)
     return `${pt.x},${pt.y}`
   }).join(' ')
 

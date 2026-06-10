@@ -13,7 +13,7 @@ export function GoalsPage() {
       footer={
         <Button
           disabled={goals.length === 0}
-          onClick={() => navigate('/onboarding/ciencia')}
+          onClick={() => navigate('/onboarding/rotina/1')}
         >
           Continuar
         </Button>

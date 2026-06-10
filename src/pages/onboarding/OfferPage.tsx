@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { useAppStore } from '../../store/useAppStore'
 
 export function OfferPage() {
   const navigate = useNavigate()
+  const { setUsePromoOffer, setSelectedPlan } = useAppStore()
   const [seconds, setSeconds] = useState(29 * 60 + 53)
 
   useEffect(() => {
@@ -18,12 +20,18 @@ export function OfferPage() {
   const secs = seconds % 60
   const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 
+  const goToPayment = () => {
+    setSelectedPlan('yearly')
+    setUsePromoOffer(true)
+    navigate('/onboarding/pagamento')
+  }
+
   return (
     <div className="min-h-dvh bg-black flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col min-h-dvh px-5">
         <header className="pt-4">
           <button
-            onClick={() => navigate('/onboarding/desafio')}
+            onClick={() => navigate('/onboarding/planos')}
             className="text-neutral-500"
           >
             <X size={24} />
@@ -59,12 +67,12 @@ export function OfferPage() {
         <div className="pb-8">
           <Button
             className="!bg-accent-yellow !text-black hover:!bg-yellow-400"
-            onClick={() => navigate('/onboarding/desafio')}
+            onClick={goToPayment}
           >
             Continuar — ECONOMIZE 60%
           </Button>
           <p className="text-neutral-500 text-xs text-center mt-3">
-            Apenas R$ 95,90/ano · Pix e cartão disponíveis em breve
+            Apenas R$ 95,90/ano · Pix e cartão
           </p>
         </div>
       </div>

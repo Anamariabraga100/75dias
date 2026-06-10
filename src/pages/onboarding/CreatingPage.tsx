@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { OnboardingLayout } from '../../components/layout/OnboardingLayout'
 import { ProgressRing, LoadingStep } from '../../components/ui/ProgressRing'
+import { useAppStore } from '../../store/useAppStore'
 
 const STEPS = [
   'Analisando suas respostas',
@@ -25,8 +26,13 @@ const TESTIMONIALS = [
 
 export function CreatingPage() {
   const navigate = useNavigate()
+  const computeScores = useAppStore((s) => s.computeScores)
   const [percent, setPercent] = useState(0)
   const [activeStep, setActiveStep] = useState(0)
+
+  useEffect(() => {
+    computeScores()
+  }, [computeScores])
 
   useEffect(() => {
     const interval = setInterval(() => {

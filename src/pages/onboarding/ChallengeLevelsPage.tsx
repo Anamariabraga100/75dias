@@ -5,7 +5,7 @@ import { CHALLENGES, useAppStore, type ChallengeId } from '../../store/useAppSto
 
 export function ChallengeLevelsPage() {
   const navigate = useNavigate()
-  const { setChallengeId } = useAppStore()
+  const { setChallengeId, recommendedChallenge } = useAppStore()
   const challenges = [CHALLENGES.hard, CHALLENGES.medium, CHALLENGES.soft]
 
   const start = (id: ChallengeId) => {
@@ -18,6 +18,11 @@ export function ChallengeLevelsPage() {
       <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1 pb-4">
         {challenges.map((c) => (
           <div key={c.id} className="relative rounded-3xl overflow-hidden">
+            {recommendedChallenge === c.id && (
+              <div className="absolute top-4 right-4 z-10 bg-accent-blue text-white text-xs font-bold px-3 py-1 rounded-full">
+                Recomendado para você
+              </div>
+            )}
             <img src={c.image} alt={c.name} className="w-full h-64 object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-5">

@@ -3,20 +3,31 @@ import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
 
+const PAYWALL_HERO =
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=1000&fit=crop'
+
 export function PaywallPage() {
   const navigate = useNavigate()
-  const { selectedPlan, setSelectedPlan } = useAppStore()
+  const { selectedPlan, setSelectedPlan, setUsePromoOffer } = useAppStore()
+
+  const goToPayment = () => {
+    setUsePromoOffer(false)
+    navigate('/onboarding/pagamento')
+  }
 
   return (
     <div className="min-h-dvh bg-black flex flex-col">
-      <div className="max-w-md mx-auto w-full flex flex-col min-h-dvh px-5">
-        <header className="flex justify-between items-center pt-4">
-          <button onClick={() => navigate(-1)} className="text-neutral-500">
+      <div className="max-w-md mx-auto w-full flex flex-col min-h-dvh">
+        <header className="flex justify-between items-center pt-4 px-5 shrink-0 z-10">
+          <button
+            onClick={() => navigate('/onboarding/oferta')}
+            className="text-neutral-500"
+          >
             <X size={24} />
           </button>
         </header>
 
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide py-4 shrink-0">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide py-3 px-5 shrink-0">
           <div className="min-w-[220px] bg-gradient-to-br from-green-900/60 to-green-950/40 rounded-2xl p-4 shrink-0">
             <p className="font-bold text-sm mb-1">Fique conectado</p>
             <p className="text-neutral-400 text-xs">
@@ -31,7 +42,21 @@ export function PaywallPage() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col justify-end pb-8">
+        <div className="flex-1 relative mx-5 my-2 min-h-[240px] rounded-3xl overflow-hidden">
+          <img
+            src={PAYWALL_HERO}
+            alt="Pessoas treinando juntas"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
+          <div className="absolute bottom-4 left-4 right-4">
+            <p className="text-white/90 text-sm font-medium">
+              Junte-se a milhares de brasileiros reconstruindo disciplina
+            </p>
+          </div>
+        </div>
+
+        <div className="px-5 pb-8 pt-2 shrink-0 bg-gradient-to-t from-black via-black to-transparent">
           <span className="inline-block bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full w-fit mb-3">
             Acesso completo
           </span>
@@ -69,7 +94,7 @@ export function PaywallPage() {
             </button>
           </div>
 
-          <Button onClick={() => navigate('/onboarding/oferta')}>Continuar</Button>
+          <Button onClick={goToPayment}>Continuar</Button>
 
           <p className="text-neutral-500 text-xs text-center mt-3">
             {selectedPlan === 'yearly' ? 'R$ 119,90/ano' : 'Cobrança mensal recorrente'}
