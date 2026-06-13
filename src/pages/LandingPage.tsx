@@ -4,22 +4,22 @@ import { Logo } from '../components/ui/Logo'
 
 const CARDS = [
   {
-    title: 'Home Fit',
-    badge: 'MÉDIO',
-    badgeColor: 'bg-lime-400 text-black',
+    title: 'Iniciante',
+    badge: 'INICIANTE',
+    badgeColor: 'bg-accent-green text-black',
     image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=600&fit=crop',
   },
   {
-    title: 'Peak Climb',
-    badge: 'HARD',
+    title: 'Implacável',
+    badge: 'IMPLACÁVEL',
     badgeColor: 'bg-accent-orange text-white',
     image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=600&fit=crop',
     featured: true,
   },
   {
-    title: '75 Dias',
-    badge: 'MÉDIO',
-    badgeColor: 'bg-lime-400 text-black',
+    title: 'Reset90',
+    badge: '90 DIAS',
+    badgeColor: 'bg-accent-yellow text-black',
     image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=600&fit=crop',
   },
 ]
@@ -66,9 +66,9 @@ export function LandingPage() {
         <div className="flex-1 flex flex-col px-6 pb-8">
           <div className="text-center mb-8 mt-4">
             <Logo size="lg" />
-            <h1 className="text-3xl font-bold mt-6 mb-3">Recomece de verdade</h1>
+            <h1 className="text-3xl font-bold mt-6 mb-3">90 dias. Reset total.</h1>
             <p className="text-neutral-400 text-base leading-relaxed">
-              Reconstrua rotina, foco e disciplina depois de estresse, pausas ou hábitos quebrados
+              Disciplina, corpo e mente — reconstrua sua rotina do zero com o Reset90
             </p>
           </div>
 

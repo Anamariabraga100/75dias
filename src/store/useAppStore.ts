@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { analyzeProfile } from './profileAnalysis'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -11,11 +12,11 @@ export type Goal =
   | 'time'
   | 'consistency'
 
-export type ChallengeId = 'hard' | 'medium' | 'soft' | 'custom'
+export type ChallengeId = 'iniciante' | 'intermediario' | 'implacavel'
 
 export type StartDateOption = 'today' | 'tomorrow' | 'already' | 'other'
 
-export type PlanType = 'monthly' | 'yearly'
+export type PlanType = 'monthly' | 'quarterly'
 
 export type WakeTime = 'before_6' | '6_8' | '8_10' | 'after_10'
 export type SleepHours = 'less_6' | '6_7' | '7_8' | 'more_8'
@@ -24,13 +25,55 @@ export type ScreenTime = 'low' | 'moderate' | 'high' | 'very_high'
 export type RoutineConsistency = 'chaotic' | 'somewhat' | 'mostly' | 'structured'
 export type MealHabits = 'skip_meals' | 'irregular' | 'somewhat' | 'regular'
 
+export type WorkSituation =
+  | 'student'
+  | 'employed_office'
+  | 'remote'
+  | 'entrepreneur'
+  | 'shift'
+  | 'not_working'
+
+export type WorkLoad = 'light' | 'moderate' | 'heavy' | 'overwhelming'
+
+export type StudySituation = 'none' | 'school' | 'college' | 'course' | 'self_taught'
+
+export type StudyFrequency = 'none' | 'occasional' | 'few_times_week' | 'daily'
+
+export type TrainingGoal =
+  | 'none'
+  | 'lose_weight'
+  | 'gain_muscle'
+  | 'endurance'
+  | 'discipline'
+  | 'health'
+
+export type TrainingPlace = 'none' | 'home' | 'gym' | 'outdoor' | 'mixed'
+
 export interface RoutineAnswers {
   wakeTime: WakeTime | null
   sleepHours: SleepHours | null
+  workSituation: WorkSituation | null
+  workLoad: WorkLoad | null
+  studySituation: StudySituation | null
+  studyFrequency: StudyFrequency | null
   exerciseFrequency: ExerciseFrequency | null
+  trainingGoal: TrainingGoal | null
+  trainingPlace: TrainingPlace | null
   screenTime: ScreenTime | null
   routineConsistency: RoutineConsistency | null
   mealHabits: MealHabits | null
+}
+
+export interface ProfileInsights {
+  weakAreas: string[]
+  strongAreas: string[]
+  scoreSummary: string
+  personalizedQuote: string
+  beforeItems: string[]
+  afterItems: string[]
+  dayMessages: { day1: string; day30: string; day90: string }
+  blueprintText: string
+  priorityActions: string[]
 }
 
 export interface RadarScores {
@@ -52,9 +95,11 @@ interface AppState {
   radarScores: RadarScores
   weakAreas: string[]
   recommendedChallenge: ChallengeId | null
+  profileInsights: ProfileInsights | null
   signed: boolean
   selectedPlan: PlanType
   challengeId: ChallengeId | null
+  challengeAccepted: boolean
   startDate: StartDateOption | null
   customStartDate: string | null
   currentDay: number
@@ -73,6 +118,8 @@ interface AppState {
   setSigned: (signed: boolean) => void
   setSelectedPlan: (plan: PlanType) => void
   setChallengeId: (id: ChallengeId) => void
+  acceptChallenge: (id: ChallengeId) => void
+  quitChallenge: () => void
   setStartDate: (option: StartDateOption, customDate?: string) => void
   completeOnboarding: () => void
   setPaymentComplete: () => void
@@ -83,7 +130,13 @@ interface AppState {
 const emptyRoutineAnswers: RoutineAnswers = {
   wakeTime: null,
   sleepHours: null,
+  workSituation: null,
+  workLoad: null,
+  studySituation: null,
+  studyFrequency: null,
   exerciseFrequency: null,
+  trainingGoal: null,
+  trainingPlace: null,
   screenTime: null,
   routineConsistency: null,
   mealHabits: null,
@@ -98,20 +151,6 @@ const defaultRadarScores: RadarScores = {
   foco: 23,
 }
 
-const SCORE_MAPS = {
-  wakeTime: { before_6: 85, '6_8': 90, '8_10': 70, after_10: 45 },
-  sleepHours: { less_6: 35, '6_7': 65, '7_8': 90, more_8: 75 },
-  exerciseFrequency: { never: 25, '1_2_week': 45, '3_4_week': 70, daily: 92 },
-  screenTime: { low: 90, moderate: 70, high: 45, very_high: 25 },
-  routineConsistency: { chaotic: 30, somewhat: 55, mostly: 75, structured: 92 },
-  mealHabits: { skip_meals: 35, irregular: 50, somewhat: 72, regular: 90 },
-} as const
-
-function scoreValue(value: string | null, map: Record<string, number>): number {
-  if (!value) return 50
-  return map[value] ?? 50
-}
-
 const initialState = {
   name: '',
   gender: null as Gender,
@@ -122,9 +161,11 @@ const initialState = {
   radarScores: defaultRadarScores,
   weakAreas: [] as string[],
   recommendedChallenge: null as ChallengeId | null,
+  profileInsights: null as ProfileInsights | null,
   signed: false,
-  selectedPlan: 'yearly' as PlanType,
+  selectedPlan: 'quarterly' as PlanType,
   challengeId: null as ChallengeId | null,
+  challengeAccepted: false,
   startDate: null as StartDateOption | null,
   customStartDate: null as string | null,
   currentDay: 1,
@@ -153,71 +194,50 @@ export const useAppStore = create<AppState>()(
           routineAnswers: { ...state.routineAnswers, [key]: value },
         })),
       computeScores: () => {
-        const { routineAnswers } = get()
-        const wake = scoreValue(routineAnswers.wakeTime, SCORE_MAPS.wakeTime)
-        const sleep = scoreValue(routineAnswers.sleepHours, SCORE_MAPS.sleepHours)
-        const exercise = scoreValue(routineAnswers.exerciseFrequency, SCORE_MAPS.exerciseFrequency)
-        const screen = scoreValue(routineAnswers.screenTime, SCORE_MAPS.screenTime)
-        const routine = scoreValue(routineAnswers.routineConsistency, SCORE_MAPS.routineConsistency)
-        const meals = scoreValue(routineAnswers.mealHabits, SCORE_MAPS.mealHabits)
-
-        const disciplineScore = Math.round(
-          exercise * 0.25 +
-            routine * 0.2 +
-            sleep * 0.2 +
-            screen * 0.15 +
-            wake * 0.1 +
-            meals * 0.1
-        )
-
-        const radarScores: RadarScores = {
-          disciplina: Math.round((exercise + routine + wake) / 3),
-          energia: Math.round((sleep + meals + exercise) / 3),
-          habitos: Math.round((exercise + meals + routine) / 3),
-          consistencia: Math.round((routine + exercise) / 2),
-          saude: Math.round((exercise + sleep + meals) / 3),
-          foco: Math.round((screen + routine) / 2),
-        }
-
-        const projectedScore = Math.min(
-          95,
-          Math.round(disciplineScore + (100 - disciplineScore) * 0.72)
-        )
-
-        let recommendedChallenge: ChallengeId = 'medium'
-        if (disciplineScore >= 68 && exercise >= 65) recommendedChallenge = 'hard'
-        else if (disciplineScore < 48 || exercise < 40) recommendedChallenge = 'soft'
-
-        const axisLabels: { key: keyof RadarScores; label: string }[] = [
-          { key: 'disciplina', label: 'disciplina' },
-          { key: 'energia', label: 'energia' },
-          { key: 'habitos', label: 'hábitos' },
-          { key: 'consistencia', label: 'consistência' },
-          { key: 'saude', label: 'saúde' },
-          { key: 'foco', label: 'foco' },
-        ]
-        const weakAreas = axisLabels
-          .sort((a, b) => radarScores[a.key] - radarScores[b.key])
-          .slice(0, 2)
-          .map((a) => a.label)
-
-        set({ disciplineScore, projectedScore, radarScores, weakAreas, recommendedChallenge })
+        const { routineAnswers, goals, name } = get()
+        const result = analyzeProfile(routineAnswers, goals, name)
+        set({
+          disciplineScore: result.disciplineScore,
+          projectedScore: result.projectedScore,
+          radarScores: result.radarScores,
+          weakAreas: result.weakAreas,
+          recommendedChallenge: result.recommendedChallenge,
+          profileInsights: result.insights,
+        })
       },
       setSigned: (signed) => set({ signed }),
       setSelectedPlan: (plan) => set({ selectedPlan: plan }),
       setChallengeId: (id) => set({ challengeId: id }),
+      acceptChallenge: (id) =>
+        set({ challengeId: id, challengeAccepted: true, currentDay: 1 }),
+      quitChallenge: () =>
+        set({ challengeId: null, challengeAccepted: false, currentDay: 1 }),
       setStartDate: (option, customDate) =>
-        set({ startDate: option, customStartDate: customDate ?? null }),
-      completeOnboarding: () => set({ onboardingComplete: true }),
+        set({ startDate: option, customStartDate: customDate ?? null, currentDay: 1 }),
+      completeOnboarding: () => set({ onboardingComplete: true, currentDay: 1 }),
       setPaymentComplete: () => set({ paymentComplete: true }),
       setUsePromoOffer: (value) => set({ usePromoOffer: value }),
       reset: () => set(initialState),
     }),
-    { name: '75-dias-storage' }
+    {
+      name: '75-dias-storage',
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<AppState> | undefined
+        if (!saved) return current
+        return {
+          ...current,
+          ...saved,
+          currentDay:
+            typeof saved.currentDay === 'number' && saved.currentDay >= 1
+              ? Math.min(90, saved.currentDay)
+              : 1,
+        }
+      },
+    }
   )
 )
 
-export type RoutineStepId = '1' | '2' | '3' | '4'
+export type RoutineStepId = '1' | '2' | '3' | '4' | '5' | '6'
 
 export const ROUTINE_STEPS: Record<
   RoutineStepId,
@@ -228,6 +248,7 @@ export const ROUTINE_STEPS: Record<
       key: keyof RoutineAnswers
       label: string
       emoji: string
+      skipWhen?: { key: keyof RoutineAnswers; value: string }
       options: { value: string; label: string; emoji: string }[]
     }[]
     next: string
@@ -235,7 +256,7 @@ export const ROUTINE_STEPS: Record<
 > = {
   '1': {
     title: 'Como é sua rotina de sono?',
-    subtitle: 'O sono é a base de tudo — energia, foco e disciplina',
+    subtitle: 'O sono é a base de energia, foco e disciplina',
     questions: [
       {
         key: 'sleepHours',
@@ -263,8 +284,69 @@ export const ROUTINE_STEPS: Record<
     next: '/onboarding/rotina/2',
   },
   '2': {
-    title: 'Movimento no dia a dia',
-    subtitle: 'Sem julgamento — queremos entender seu ponto de partida',
+    title: 'Como é sua vida profissional?',
+    subtitle: 'Trabalho impacta diretamente sua energia e tempo disponível',
+    questions: [
+      {
+        key: 'workSituation',
+        label: 'Qual é sua situação de trabalho hoje?',
+        emoji: '💼',
+        options: [
+          { value: 'student', label: 'Estudante (trabalho + estudo)', emoji: '🎓' },
+          { value: 'employed_office', label: 'CLT / presencial', emoji: '🏢' },
+          { value: 'remote', label: 'Home office / remoto', emoji: '🏠' },
+          { value: 'entrepreneur', label: 'Empreendedor(a) / autônomo(a)', emoji: '🚀' },
+          { value: 'shift', label: 'Turnos alternados', emoji: '🌓' },
+          { value: 'not_working', label: 'Sem trabalho fixo agora', emoji: '⏸️' },
+        ],
+      },
+      {
+        key: 'workLoad',
+        label: 'Como você descreveria sua carga de trabalho?',
+        emoji: '📊',
+        options: [
+          { value: 'light', label: 'Leve — tenho tempo livre', emoji: '😌' },
+          { value: 'moderate', label: 'Moderada — equilibrada', emoji: '⚖️' },
+          { value: 'heavy', label: 'Pesada — quase sem folga', emoji: '😓' },
+          { value: 'overwhelming', label: 'Exaustiva — no limite', emoji: '🔥' },
+        ],
+      },
+    ],
+    next: '/onboarding/rotina/3',
+  },
+  '3': {
+    title: 'E os estudos?',
+    subtitle: 'Entender isso ajuda a encaixar leitura e aprendizado no plano',
+    questions: [
+      {
+        key: 'studySituation',
+        label: 'Você estuda atualmente?',
+        emoji: '📚',
+        options: [
+          { value: 'none', label: 'Não estudo no momento', emoji: '➖' },
+          { value: 'school', label: 'Ensino médio', emoji: '🏫' },
+          { value: 'college', label: 'Faculdade / pós', emoji: '🎓' },
+          { value: 'course', label: 'Curso ou certificação', emoji: '📋' },
+          { value: 'self_taught', label: 'Estudo por conta própria', emoji: '🧠' },
+        ],
+      },
+      {
+        key: 'studyFrequency',
+        label: 'Com que frequência você estuda?',
+        emoji: '📖',
+        skipWhen: { key: 'studySituation', value: 'none' },
+        options: [
+          { value: 'occasional', label: 'De vez em quando', emoji: '🎲' },
+          { value: 'few_times_week', label: '2–3 vezes por semana', emoji: '📅' },
+          { value: 'daily', label: 'Quase todos os dias', emoji: '🔥' },
+        ],
+      },
+    ],
+    next: '/onboarding/rotina/4',
+  },
+  '4': {
+    title: 'Treino e movimento',
+    subtitle: 'Sem julgamento — queremos seu ponto de partida real',
     questions: [
       {
         key: 'exerciseFrequency',
@@ -277,12 +359,37 @@ export const ROUTINE_STEPS: Record<
           { value: 'daily', label: 'Quase todos os dias', emoji: '🔥' },
         ],
       },
+      {
+        key: 'trainingGoal',
+        label: 'Qual sua meta principal com treino?',
+        emoji: '🎯',
+        options: [
+          { value: 'none', label: 'Não tenho meta específica', emoji: '➖' },
+          { value: 'lose_weight', label: 'Emagrecer / perder gordura', emoji: '⚖️' },
+          { value: 'gain_muscle', label: 'Ganhar massa muscular', emoji: '🏋️' },
+          { value: 'endurance', label: 'Condicionamento / resistência', emoji: '🏃' },
+          { value: 'discipline', label: 'Criar disciplina no treino', emoji: '🧱' },
+          { value: 'health', label: 'Saúde e bem-estar geral', emoji: '❤️' },
+        ],
+      },
+      {
+        key: 'trainingPlace',
+        label: 'Onde você prefere ou costuma treinar?',
+        emoji: '📍',
+        options: [
+          { value: 'none', label: 'Ainda não treino', emoji: '➖' },
+          { value: 'home', label: 'Em casa', emoji: '🏠' },
+          { value: 'gym', label: 'Academia', emoji: '🏋️' },
+          { value: 'outdoor', label: 'Ar livre / rua', emoji: '🌳' },
+          { value: 'mixed', label: 'Misto — vario conforme o dia', emoji: '🔄' },
+        ],
+      },
     ],
-    next: '/onboarding/rotina/3',
+    next: '/onboarding/rotina/5',
   },
-  '3': {
+  '5': {
     title: 'Foco e distrações',
-    subtitle: 'O celular e a falta de estrutura sabotam mais do que a gente imagina',
+    subtitle: 'Celular e falta de estrutura sabotam mais do que a gente imagina',
     questions: [
       {
         key: 'screenTime',
@@ -307,11 +414,11 @@ export const ROUTINE_STEPS: Record<
         ],
       },
     ],
-    next: '/onboarding/rotina/4',
+    next: '/onboarding/rotina/6',
   },
-  '4': {
+  '6': {
     title: 'Alimentação e energia',
-    subtitle: 'Última pergunta — depois analisamos tudo para você',
+    subtitle: 'Última pergunta — em seguida analisamos tudo para você',
     questions: [
       {
         key: 'mealHabits',
@@ -339,66 +446,245 @@ export const GOAL_OPTIONS: { id: Goal; emoji: string; label: string }[] = [
 ]
 
 export const CHALLENGES = {
-  hard: {
-    id: 'hard' as const,
-    name: '75 Dias Hard',
-    badge: 'HARD',
-    badgeColor: 'bg-accent-orange',
-    image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=800&fit=crop',
-    tags: [
-      '🥦 Dieta saudável',
-      '💧 3,7L de água/dia',
-      '🍷 Zero álcool e cheat meals',
-      '📖 Ler 10 páginas',
-      '🏋️ 2 treinos/dia (1 outdoor)',
-      '📷 Foto de progresso',
-    ],
-    tasks: [
-      { id: 'water', icon: '💧', title: 'Água', subtitle: '0/3785 ml', type: 'counter' as const },
-      { id: 'diet', icon: '🥕', title: 'Dieta saudável', subtitle: 'Sem junk food ou refrigerante', type: 'check' as const },
-      { id: 'read', icon: '📖', title: 'Ler 10 páginas', subtitle: 'Não-ficção', type: 'check' as const },
-      { id: 'alcohol', icon: '🧁', title: 'Sem álcool & cheat meals', subtitle: '', type: 'check' as const },
-      { id: 'workout1', icon: '🏋️', title: 'Treino 1', subtitle: '45 min mínimo', type: 'check' as const },
-      { id: 'workout2', icon: '🏃', title: 'Treino 2 (outdoor)', subtitle: '45 min mínimo', type: 'check' as const },
-      { id: 'photo', icon: '📷', title: 'Foto de progresso', subtitle: '', type: 'action' as const },
-    ],
-  },
-  medium: {
-    id: 'medium' as const,
-    name: '75 Dias Medium',
-    badge: 'MÉDIO',
-    badgeColor: 'bg-accent-yellow text-black',
-    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=800&fit=crop',
-    tags: [
-      '📖 Ler 10 páginas (qualquer livro)',
-      '📷 Foto de progresso',
-      '🥗 1 refeição saudável/dia',
-      '🏋️ 1 treino/dia',
-    ],
-    tasks: [
-      { id: 'read', icon: '📖', title: 'Ler 10 páginas', subtitle: 'Qualquer livro', type: 'check' as const },
-      { id: 'workout', icon: '🏋️', title: 'Treino', subtitle: '30 min mínimo', type: 'check' as const },
-      { id: 'meal', icon: '🥗', title: 'Refeição saudável', subtitle: 'Pelo menos 1 por dia', type: 'check' as const },
-      { id: 'photo', icon: '📷', title: 'Foto de progresso', subtitle: '', type: 'action' as const },
-    ],
-  },
-  soft: {
-    id: 'soft' as const,
-    name: '75 Dias Soft',
-    badge: 'LEVE',
+  iniciante: {
+    id: 'iniciante' as const,
+    name: 'Reset90 Iniciante',
+    badge: 'INICIANTE',
     badgeColor: 'bg-accent-green text-black',
+    tagline: 'O primeiro passo — leve, possível e consistente',
     image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&h=800&fit=crop',
     tags: [
-      '💧 Beber mais água',
-      '📖 Ler 5 páginas',
-      '🧘 10 min de mindfulness',
-      '🚶 Caminhada diária',
+      '🥗 Dieta básica',
+      '🏋️ Treino 2–3x/semana',
+      '📖 Ler 2–5 páginas/dia',
+      '😴 Dormir o suficiente',
     ],
     tasks: [
-      { id: 'water', icon: '💧', title: 'Água', subtitle: '0/2000 ml', type: 'counter' as const },
-      { id: 'read', icon: '📖', title: 'Ler 5 páginas', subtitle: '', type: 'check' as const },
-      { id: 'walk', icon: '🚶', title: 'Caminhada', subtitle: '20 min mínimo', type: 'check' as const },
-      { id: 'mindful', icon: '🧘', title: 'Mindfulness', subtitle: '10 min', type: 'check' as const },
+      {
+        id: 'diet',
+        icon: '🥗',
+        title: 'Dieta básica',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Faça pelo menos 3 refeições simples e evite junk food e refrigerante.',
+        weekly: 'Manter alimentação básica e regular a semana toda.',
+        previewHint: 'Comi de forma simples e saudável hoje',
+      },
+      {
+        id: 'workout',
+        icon: '🏋️',
+        title: 'Treino moderado',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Se hoje é dia de treino: 30 min de movimento (caminhada, academia ou casa).',
+        weekly: '2 a 3 treinos por semana. Marque só nos dias que treinou.',
+        previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
+      },
+      {
+        id: 'read',
+        icon: '📖',
+        title: 'Leitura',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Leia de 2 a 5 páginas hoje — qualquer livro que agregue.',
+        weekly: 'Leitura diária, mesmo que poucas páginas.',
+        previewHint: 'Li minhas páginas diárias',
+      },
+      {
+        id: 'sleep',
+        icon: '😴',
+        title: 'Sono',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Durma pelo menos 7 horas esta noite.',
+        weekly: '5+ noites com 7h+ por semana.',
+        previewHint: 'Dormi pelo menos 7 horas',
+      },
+    ],
+  },
+  intermediario: {
+    id: 'intermediario' as const,
+    name: 'Reset90 Intermediário',
+    badge: 'INTERMEDIÁRIO',
+    badgeColor: 'bg-accent-yellow text-black',
+    tagline: 'Mais exigência — corpo, mente e foco alinhados',
+    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=800&fit=crop',
+    tags: [
+      '🍽️ Dieta moderada — sem industrializado',
+      '🏋️ Treino 3–4x/semana',
+      '📖 Ler 5–10 páginas/dia',
+      '🚫 Sem pornografia',
+      '😴 Dormir o suficiente',
+    ],
+    tasks: [
+      {
+        id: 'diet',
+        icon: '🍽️',
+        title: 'Dieta moderada',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Evite industrializados, fast food e excesso de doces.',
+        weekly: 'Alimentação limpa na maior parte da semana.',
+        previewHint: 'Evitei industrializados e comi limpo hoje',
+      },
+      {
+        id: 'workout',
+        icon: '🏋️',
+        title: 'Treino',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Se hoje é dia de treino: mínimo 40 min de exercício estruturado.',
+        weekly: '3 a 4 sessões por semana. Marque nos dias que treinou.',
+        previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
+      },
+      {
+        id: 'read',
+        icon: '📖',
+        title: 'Leitura',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Leia de 5 a 10 páginas hoje.',
+        weekly: 'Leitura todos os dias da semana.',
+        previewHint: 'Li minhas páginas diárias',
+      },
+      {
+        id: 'noporn',
+        icon: '🚫',
+        title: 'Sem pornografia',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Zero pornografia. Marque ao final do dia se manteve.',
+        weekly: '7 dias limpos por semana.',
+        previewHint: 'Fiquei longe de pornografia hoje',
+      },
+      {
+        id: 'sleep',
+        icon: '😴',
+        title: 'Sono',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Durma pelo menos 7 horas esta noite.',
+        weekly: '5+ noites com 7h+ por semana.',
+        previewHint: 'Dormi pelo menos 7 horas',
+      },
+    ],
+  },
+  implacavel: {
+    id: 'implacavel' as const,
+    name: 'Reset90 Implacável',
+    badge: 'IMPLACÁVEL',
+    badgeColor: 'bg-accent-orange',
+    tagline: 'Sem atalhos — transformação total em 90 dias',
+    image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=800&fit=crop',
+    tags: [
+      '📋 Dieta regrada + 1 ref. livre/semana',
+      '💊 Suplementação (creatina)',
+      '🏋️ Treino 4–5x/semana',
+      '📖 Ler 10–15 páginas/dia',
+      '📷 Foto a cada 3 dias + relatórios',
+      '🚫 Zero pornografia & álcool',
+      '🚫 Zero masturbação',
+      '😴 Dormir o suficiente',
+    ],
+    tasks: [
+      {
+        id: 'diet',
+        icon: '📋',
+        title: 'Dieta regrada',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Siga sua dieta sem ultraprocessados, fast food ou doces em excesso.',
+        weekly: '1 refeição livre por semana — escolha o dia e marque os demais como cumpridos.',
+        previewHint: 'Segui a dieta regrada hoje',
+      },
+      {
+        id: 'creatine',
+        icon: '💊',
+        title: 'Creatina',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Tome sua dose diária de creatina (conforme orientação da embalagem ou profissional).',
+        weekly: 'Todos os 7 dias da semana, sem falhar.',
+        previewHint: 'Tomei minha dose de creatina diária',
+      },
+      {
+        id: 'workout',
+        icon: '🏋️',
+        title: 'Treino',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Se hoje é dia de treino: complete no mínimo 45 min (musculação, corrida ou similar).',
+        weekly: '4 a 5 sessões por semana. Marque só nos dias em que treinou de fato.',
+        previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
+      },
+      {
+        id: 'read',
+        icon: '📖',
+        title: 'Leitura',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Leia de 10 a 15 páginas hoje — preferencialmente não-ficção.',
+        weekly: 'Leitura todos os dias da semana, mesmo que seja o mínimo de páginas.',
+        previewHint: 'Li minhas páginas diárias',
+      },
+      {
+        id: 'photo',
+        icon: '📷',
+        title: 'Foto do shape',
+        subtitle: '',
+        type: 'action' as const,
+        daily:
+          'Se hoje é dia de registro (a cada 3 dias), tire a foto de evolução — mesmo ângulo, luz e pose.',
+        weekly:
+          '1 foto a cada 3 dias (~30 registros no Reset90). Comparação de 7 em 7 dias e destaque a cada 30 dias.',
+        previewHint: 'Tirei minha foto de evolução (nos dias de registro)',
+      },
+      {
+        id: 'noporn',
+        icon: '🚫',
+        title: 'Zero pornografia',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Nenhum acesso a pornografia. Marque ao final do dia se manteve.',
+        weekly: '7 dias limpos por semana — cada dia é uma vitória individual.',
+        previewHint: 'Fiquei longe de pornografia hoje',
+      },
+      {
+        id: 'purity',
+        icon: '🚫',
+        title: 'Zero masturbação',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Abstinência total. Marque ao final do dia se manteve.',
+        weekly: '7 dias seguidos sem masturbação — foco em disciplina e autocontrole.',
+        previewHint: 'Mantive abstinência hoje',
+      },
+      {
+        id: 'alcohol',
+        icon: '🍷',
+        title: 'Zero álcool',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Nenhuma bebida alcoólica. Marque ao final do dia.',
+        weekly: 'Semana 100% seca — zero exceções.',
+        previewHint: 'Não bebi álcool hoje',
+      },
+      {
+        id: 'sleep',
+        icon: '😴',
+        title: 'Sono',
+        subtitle: '',
+        type: 'check' as const,
+        daily: 'Durma pelo menos 7 horas esta noite. Marque amanhã ao acordar.',
+        weekly: '5+ noites com 7h+ por semana para manter energia e recuperação.',
+        previewHint: 'Dormi pelo menos 7 horas',
+      },
     ],
   },
 }
+
+export const CHALLENGE_LIST = [
+  CHALLENGES.iniciante,
+  CHALLENGES.intermediario,
+  CHALLENGES.implacavel,
+]

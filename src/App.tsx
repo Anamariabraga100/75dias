@@ -19,9 +19,10 @@ import { PaymentPage } from './pages/onboarding/PaymentPage'
 import { PaymentSuccessPage } from './pages/onboarding/PaymentSuccessPage'
 import { OfferPage } from './pages/onboarding/OfferPage'
 import { ChallengeSelectPage } from './pages/onboarding/ChallengeSelectPage'
-import { ChallengeLevelsPage } from './pages/onboarding/ChallengeLevelsPage'
 import { StartDatePage } from './pages/onboarding/StartDatePage'
 import { HomePage } from './pages/app/HomePage'
+import { ProgressPage } from './pages/app/ProgressPage'
+import { GalleryPage } from './pages/app/GalleryPage'
 
 export default function App() {
   return (
@@ -48,10 +49,14 @@ export default function App() {
         <Route path="/onboarding/pagamento/sucesso" element={<PaymentSuccessPage />} />
         <Route path="/onboarding/oferta" element={<OfferPage />} />
         <Route path="/onboarding/desafio" element={<ChallengeSelectPage />} />
-        <Route path="/onboarding/niveis" element={<ChallengeLevelsPage />} />
+        <Route path="/onboarding/niveis" element={<Navigate to="/onboarding/desafio" replace />} />
         <Route path="/onboarding/inicio" element={<StartDatePage />} />
 
         <Route path="/app" element={<HomePage />} />
+        <Route path="/app/hoje" element={<Navigate to="/app" replace />} />
+        <Route path="/app/insights" element={<Navigate to="/app" replace />} />
+        <Route path="/app/progresso" element={<ProgressPage />} />
+        <Route path="/app/galeria" element={<GalleryPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

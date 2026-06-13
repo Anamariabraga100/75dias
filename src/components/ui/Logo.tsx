@@ -1,5 +1,5 @@
 import { ChevronLeft } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface BackButtonProps {
   to?: string
@@ -20,7 +20,17 @@ export function BackButton({ to, className = '' }: BackButtonProps) {
   )
 }
 
-export function Logo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+export function Logo({ size = 'md', to }: { size?: 'sm' | 'md' | 'lg'; to?: string }) {
   const sizes = { sm: 'text-lg', md: 'text-xl', lg: 'text-2xl' }
-  return <span className={`logo-text ${sizes[size]}`}>75 DIAS</span>
+  const content = <span className={`logo-text ${sizes[size]}`}>RESET90</span>
+
+  if (to) {
+    return (
+      <Link to={to} className="hover:opacity-90 transition-opacity" aria-label="Ir para Início">
+        {content}
+      </Link>
+    )
+  }
+
+  return content
 }

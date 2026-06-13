@@ -3,14 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Copy, CreditCard, QrCode, ShieldCheck } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
+import { getCheckoutPrice } from '../../lib/pricing'
 
 type PaymentMethod = 'pix' | 'card'
-
-function getPlanPrice(selectedPlan: 'monthly' | 'yearly', usePromo: boolean) {
-  if (usePromo) return { label: 'Plano Anual — Oferta', total: 'R$ 95,90', period: '/ano' }
-  if (selectedPlan === 'yearly') return { label: 'Plano Anual', total: 'R$ 119,90', period: '/ano' }
-  return { label: 'Plano Mensal', total: 'R$ 24,90', period: '/mês' }
-}
 
 export function PaymentPage() {
   const navigate = useNavigate()
@@ -19,7 +14,7 @@ export function PaymentPage() {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const price = getPlanPrice(selectedPlan, usePromoOffer)
+  const price = getCheckoutPrice(selectedPlan, usePromoOffer)
   const pixCode = '00020126580014BR.GOV.BCB.PIX0136123e4567-e12b-12d1-a456-426655440000'
 
   const handlePay = () => {
@@ -52,9 +47,9 @@ export function PaymentPage() {
             <span className="text-2xl font-bold">{price.total}</span>
             <span className="text-neutral-500 text-sm">{price.period}</span>
           </div>
-          {usePromoOffer && (
+          {usePromoOffer && price.discount && (
             <span className="inline-block mt-2 bg-accent-yellow/20 text-accent-yellow text-xs font-bold px-2 py-0.5 rounded-full">
-              60% OFF aplicado
+              {price.discount}% OFF aplicado
             </span>
           )}
         </div>

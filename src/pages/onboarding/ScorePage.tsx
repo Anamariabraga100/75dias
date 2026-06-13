@@ -11,18 +11,14 @@ function growthFactor(current: number, projected: number): string {
   return 'grande'
 }
 
-function buildQuote(weakAreas: string[]): string {
-  if (weakAreas.length === 0) {
-    return 'Você já tem uma base sólida — o desafio é manter consistência por 75 dias seguidos.'
-  }
-  const areas = weakAreas.join(' e ')
-  return `Identificamos que ${areas} são seus maiores pontos de melhoria agora. Com um plano estruturado de 75 dias, dá para virar esse jogo.`
-}
-
 export function ScorePage() {
   const navigate = useNavigate()
-  const { disciplineScore, projectedScore, weakAreas } = useAppStore()
+  const { disciplineScore, projectedScore, profileInsights } = useAppStore()
   const growth = growthFactor(disciplineScore, projectedScore)
+
+  const quote =
+    profileInsights?.personalizedQuote ??
+    'Com um plano estruturado de 90 dias, dá para virar esse jogo.'
 
   return (
     <OnboardingLayout
@@ -33,9 +29,31 @@ export function ScorePage() {
       <h1 className="text-3xl font-bold mb-1">
         Sua nota de disciplina: {disciplineScore}%
       </h1>
-      <p className="text-accent-blue font-semibold mb-8">
+      <p className="text-accent-blue font-semibold mb-4">
         {growth} de potencial de crescimento
       </p>
+
+      {profileInsights?.scoreSummary && (
+        <p className="text-neutral-400 text-sm mb-6 leading-relaxed">
+          {profileInsights.scoreSummary}
+        </p>
+      )}
+
+      {profileInsights?.priorityActions && profileInsights.priorityActions.length > 0 && (
+        <div className="bg-surface rounded-2xl p-4 mb-6">
+          <p className="text-neutral-500 text-xs uppercase tracking-wide mb-2">
+            Prioridades no seu plano
+          </p>
+          <ul className="space-y-1.5">
+            {profileInsights.priorityActions.map((action) => (
+              <li key={action} className="text-sm text-neutral-300 flex gap-2">
+                <span className="text-accent-blue shrink-0">→</span>
+                {action}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex items-end justify-center gap-6 mb-8 h-64 relative">
         <div className="flex flex-col items-center">
@@ -66,11 +84,11 @@ export function ScorePage() {
               <span className="font-bold text-2xl">{projectedScore}%</span>
             </div>
           </div>
-          <p className="text-accent-blue text-xs mt-2 font-medium">Com 75 Dias</p>
+          <p className="text-accent-blue text-xs mt-2 font-medium">Com Reset90</p>
         </div>
       </div>
 
-      <QuoteBox>{buildQuote(weakAreas)}</QuoteBox>
+      <QuoteBox>{quote}</QuoteBox>
     </OnboardingLayout>
   )
 }

@@ -9,27 +9,21 @@ const DAY_CONFIG = {
     color: '#ef4444',
     gradient: 'red' as const,
     progress: 0,
-    message: (weak: string[]) =>
-      weak.length > 0
-        ? `Dia 1: seu ponto fraco hoje é ${weak[0]}. Sem sistema, a maioria desiste antes do dia 7.`
-        : 'Você começa forte mas perde o ritmo. Sem sistema. Só recomeços.',
     next: '/onboarding/dia/30',
   },
   '30': {
     color: '#a855f7',
     gradient: 'purple' as const,
     progress: 0.4,
-    message: () => 'A maioria estagna aqui — mas com hábitos diários estruturados, você passa dessa barreira.',
-    next: '/onboarding/dia/75',
+    next: '/onboarding/dia/90',
   },
-  '75': {
+  '90': {
     color: '#22c55e',
     gradient: 'green' as const,
     progress: 1,
-    message: () => 'Ótimo! Vamos consolidar a consistência e escalar seus resultados.',
     next: '/onboarding/plano',
   },
-}
+} as const
 
 function interpolateScores(
   current: RadarScores,
@@ -54,7 +48,7 @@ function average(values: number[]): number {
 export function DayProgressPage() {
   const { day } = useParams<{ day: string }>()
   const navigate = useNavigate()
-  const { radarScores, projectedScore, weakAreas } = useAppStore()
+  const { radarScores, projectedScore, profileInsights } = useAppStore()
   const config = DAY_CONFIG[day as keyof typeof DAY_CONFIG]
 
   if (!config) return null
@@ -71,17 +65,28 @@ export function DayProgressPage() {
   const axisValues = interpolateScores(radarScores, targetScores, config.progress)
   const fillPercent = average(axisValues)
 
+  const message =
+    day === '1'
+      ? profileInsights?.dayMessages.day1
+      : day === '30'
+        ? profileInsights?.dayMessages.day30
+        : profileInsights?.dayMessages.day90
+
   return (
     <OnboardingLayout
       gradient={config.gradient}
       footer={<Button onClick={() => navigate(config.next)}>Continuar</Button>}
     >
+      <p className="text-neutral-500 text-sm text-center mb-1">Reset90</p>
       <h1 className="text-5xl font-bold text-center mb-2">Dia {day}</h1>
 
       <div className="flex-1 flex flex-col items-center justify-center">
         <RadarChart fillPercent={fillPercent} axisValues={axisValues} color={config.color} />
         <div className="w-full mt-4">
-          <QuoteBox>{config.message(weakAreas)}</QuoteBox>
+          <QuoteBox>
+            {message ??
+              'Com hábitos diários estruturados, você passa dessa barreira.'}
+          </QuoteBox>
         </div>
       </div>
     </OnboardingLayout>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
+import { PRICING } from '../../lib/pricing'
 
 export function OfferPage() {
   const navigate = useNavigate()
@@ -21,7 +22,7 @@ export function OfferPage() {
   const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 
   const goToPayment = () => {
-    setSelectedPlan('yearly')
+    setSelectedPlan('quarterly')
     setUsePromoOffer(true)
     navigate('/onboarding/pagamento')
   }
@@ -41,7 +42,7 @@ export function OfferPage() {
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <div className="relative mb-6">
             <div className="bg-accent-yellow rounded-3xl px-8 py-6 rotate-[-3deg]">
-              <span className="text-6xl font-black text-black">60</span>
+              <span className="text-6xl font-black text-black">52</span>
               <span className="text-2xl font-bold text-black">% Off</span>
             </div>
           </div>
@@ -49,13 +50,13 @@ export function OfferPage() {
           <h1 className="text-3xl font-bold mb-4">Oferta de lançamento</h1>
 
           <p className="text-neutral-300 mb-1">
-            por apenas{' '}
-            <strong className="text-white text-xl">R$ 7,99</strong>{' '}
-            <span className="line-through text-neutral-500">R$ 24,90</span>
+            Trimestral por apenas{' '}
+            <strong className="text-white text-xl">{PRICING.promoQuarterly.displayPerMonth}</strong>{' '}
+            <span className="line-through text-neutral-500">{PRICING.monthly.display}</span>
             <span className="text-neutral-500"> / mês</span>
           </p>
           <p className="text-neutral-500 text-sm mb-8 max-w-xs">
-            Acesso completo por um ano com 60% de desconto no preço regular
+            Acesso completo por 3 meses com {PRICING.promoQuarterly.discountPercent}% de desconto
           </p>
 
           <p className="text-neutral-500 text-sm mb-2">Oferta por tempo limitado</p>
@@ -69,10 +70,10 @@ export function OfferPage() {
             className="!bg-accent-yellow !text-black hover:!bg-yellow-400"
             onClick={goToPayment}
           >
-            Continuar — ECONOMIZE 60%
+            Continuar — ECONOMIZE {PRICING.promoQuarterly.discountPercent}%
           </Button>
           <p className="text-neutral-500 text-xs text-center mt-3">
-            Apenas R$ 95,90/ano · Pix e cartão
+            Apenas {PRICING.promoQuarterly.displayTotal}/trimestre · Pix e cartão
           </p>
         </div>
       </div>

@@ -2,14 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { Check, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
+import { getPlanDisplayLabel } from '../../lib/pricing'
 
 export function PaymentSuccessPage() {
   const navigate = useNavigate()
   const { name, selectedPlan, usePromoOffer } = useAppStore()
   const displayName = name || 'você'
 
-  const planLabel =
-    usePromoOffer || selectedPlan === 'yearly' ? 'Plano Anual' : 'Plano Mensal'
+  const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
 
   return (
     <div className="min-h-dvh bg-black flex flex-col">
@@ -39,7 +39,7 @@ export function PaymentSuccessPage() {
             </p>
             <ul className="space-y-2.5 text-sm text-neutral-300">
               <li className="flex items-center gap-2">
-                <span className="text-accent-green">✓</span> Todos os desafios (Hard, Medium, Soft)
+                <span className="text-accent-green">✓</span> Todos os níveis (Iniciante, Intermediário, Implacável)
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-accent-green">✓</span> Acompanhamento diário de hábitos
@@ -55,8 +55,8 @@ export function PaymentSuccessPage() {
         </div>
 
         <div className="pb-8">
-          <Button onClick={() => navigate('/onboarding/desafio')}>
-            Escolher meu desafio
+          <Button onClick={() => navigate('/onboarding/inicio')}>
+            Começar Reset90
           </Button>
         </div>
       </div>

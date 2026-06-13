@@ -2,7 +2,7 @@ interface ButtonProps {
   children: React.ReactNode
   onClick?: () => void
   disabled?: boolean
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger'
   className?: string
   type?: 'button' | 'submit'
 }
@@ -25,6 +25,9 @@ export function Button({
     secondary: 'bg-surface text-white border border-neutral-700 hover:bg-surface-light',
     ghost: 'bg-transparent text-neutral-400 hover:text-white',
     outline: 'bg-transparent text-white border border-white/30 hover:bg-white/5',
+    danger: disabled
+      ? 'bg-surface-light text-neutral-500 cursor-not-allowed'
+      : 'bg-red-950 text-red-400 border border-red-900 hover:bg-red-900/40',
   }
 
   return (

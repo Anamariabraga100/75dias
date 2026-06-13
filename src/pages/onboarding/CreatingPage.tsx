@@ -13,16 +13,94 @@ const STEPS = [
 
 const TESTIMONIALS = [
   {
-    user: 'Mariana ✨',
+    user: 'Mariana',
+    emoji: '✨',
     stars: 5,
-    text: 'Mudou minha vida. Finalmente tenho uma rotina de verdade, não uma inventada. Me incentivou a ser mais consistente nos treinos e na leitura.',
+    text: 'Mudou minha vida. Finalmente tenho uma rotina de verdade — me incentivou a ser consistente nos treinos e na leitura.',
   },
   {
-    user: 'Pedro 💪',
+    user: 'Pedro',
+    emoji: '💪',
     stars: 5,
-    text: 'Completei os 75 dias hard! Algumas rotinas ficaram permanentes. App incrível para quem precisa de estrutura.',
+    text: 'Completei os 90 dias no Implacável! Alguns hábitos ficaram permanentes. Perfeito para quem precisa de estrutura.',
+  },
+  {
+    user: 'Lucas',
+    emoji: '🔥',
+    stars: 5,
+    text: 'O app me forçou a ser honesto comigo mesmo. Em 30 dias já senti diferença na energia e no foco.',
+  },
+  {
+    user: 'Ana',
+    emoji: '🌱',
+    stars: 5,
+    text: 'Comecei no Iniciante e subi de nível. A gamificação me manteve firme nos dias difíceis.',
   },
 ]
+
+/** ~8,5 s até 100% (antes ~4 s) */
+const PROGRESS_TICK_MS = 85
+const PROGRESS_STEP = 1
+
+function TestimonialFeed() {
+  const [index, setIndex] = useState(0)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    const rotate = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % TESTIMONIALS.length)
+        setVisible(true)
+      }, 280)
+    }, 3200)
+    return () => clearInterval(rotate)
+  }, [])
+
+  const t = TESTIMONIALS[index]
+
+  return (
+    <div className="w-full mt-auto pt-6">
+      <p className="text-neutral-500 text-xs text-center mb-3 uppercase tracking-wide">
+        Quem já fez o Reset90
+      </p>
+
+      <div
+        className={`bg-surface rounded-2xl border border-neutral-800 p-4 transition-all duration-300 ${
+          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-blue/30 to-purple-600/30 border border-neutral-700 flex items-center justify-center text-sm font-bold shrink-0">
+            {t.user[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="font-semibold text-sm truncate">
+                {t.user} {t.emoji}
+              </p>
+              <span className="text-yellow-400 text-xs shrink-0 tracking-tight">
+                {'★'.repeat(t.stars)}
+              </span>
+            </div>
+            <p className="text-neutral-400 text-sm leading-relaxed">"{t.text}"</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-center gap-1.5 mt-3">
+        {TESTIMONIALS.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1 rounded-full transition-all duration-300 ${
+              i === index ? 'w-4 bg-accent-blue' : 'w-1 bg-neutral-700'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function CreatingPage() {
   const navigate = useNavigate()
@@ -39,12 +117,12 @@ export function CreatingPage() {
       setPercent((p) => {
         if (p >= 100) {
           clearInterval(interval)
-          setTimeout(() => navigate('/onboarding/dia/1'), 600)
+          setTimeout(() => navigate('/onboarding/dia/1'), 800)
           return 100
         }
-        return p + 2
+        return p + PROGRESS_STEP
       })
-    }, 80)
+    }, PROGRESS_TICK_MS)
     return () => clearInterval(interval)
   }, [navigate])
 
@@ -54,11 +132,11 @@ export function CreatingPage() {
 
   return (
     <OnboardingLayout showLogo>
-      <div className="flex flex-col items-center flex-1">
+      <div className="flex flex-col items-center flex-1 min-h-0">
         <ProgressRing percent={percent} />
         <h2 className="text-xl font-bold mt-6 mb-4">Criando seu plano</h2>
 
-        <div className="w-full mb-8">
+        <div className="w-full mb-4">
           {STEPS.map((step, i) => (
             <LoadingStep
               key={step}
@@ -68,29 +146,7 @@ export function CreatingPage() {
           ))}
         </div>
 
-        <div className="mt-auto w-full">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-            {TESTIMONIALS.map((t) => (
-              <div
-                key={t.user}
-                className="bg-surface rounded-2xl p-4 min-w-[260px] shrink-0"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-sm">
-                    {t.user[0]}
-                  </div>
-                  <span className="font-medium text-sm">{t.user}</span>
-                  <span className="text-yellow-400 text-xs ml-auto">
-                    {'★'.repeat(t.stars)}
-                  </span>
-                </div>
-                <p className="text-neutral-400 text-xs leading-relaxed line-clamp-3">
-                  {t.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <TestimonialFeed />
       </div>
     </OnboardingLayout>
   )

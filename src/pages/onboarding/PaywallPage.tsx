@@ -2,9 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
+import { PRICING } from '../../lib/pricing'
 
 const PAYWALL_HERO =
-  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=1000&fit=crop'
+  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=900&h=1200&fit=crop&q=85'
 
 export function PaywallPage() {
   const navigate = useNavigate()
@@ -27,31 +28,19 @@ export function PaywallPage() {
           </button>
         </header>
 
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide py-3 px-5 shrink-0">
-          <div className="min-w-[220px] bg-gradient-to-br from-green-900/60 to-green-950/40 rounded-2xl p-4 shrink-0">
-            <p className="font-bold text-sm mb-1">Fique conectado</p>
-            <p className="text-neutral-400 text-xs">
-              Convide amigos, acompanhe progresso e comemore vitórias juntos
-            </p>
-          </div>
-          <div className="min-w-[220px] bg-gradient-to-br from-blue-900/60 to-blue-950/40 rounded-2xl p-4 shrink-0">
-            <p className="font-bold text-sm mb-1">Crie seu desafio</p>
-            <p className="text-neutral-400 text-xs">
-              Acesse toda a biblioteca de desafios, a qualquer hora
-            </p>
-          </div>
-        </div>
-
-        <div className="flex-1 relative mx-5 my-2 min-h-[240px] rounded-3xl overflow-hidden">
+        <div className="flex-1 relative mx-5 mt-2 mb-4 min-h-[280px] rounded-3xl overflow-hidden">
           <img
             src={PAYWALL_HERO}
-            alt="Pessoas treinando juntas"
-            className="absolute inset-0 w-full h-full object-cover"
+            alt="Treino intenso — disciplina e transformação"
+            className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
-          <div className="absolute bottom-4 left-4 right-4">
-            <p className="text-white/90 text-sm font-medium">
-              Junte-se a milhares de brasileiros reconstruindo disciplina
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            <p className="text-white font-bold text-lg leading-snug mb-1">
+              90 dias para reconstruir sua disciplina
+            </p>
+            <p className="text-white/70 text-sm">
+              Junte-se a milhares de brasileiros no Reset90
             </p>
           </div>
         </div>
@@ -72,32 +61,34 @@ export function PaywallPage() {
                   : 'border-neutral-800 bg-surface'
               }`}
             >
-              <p className="text-sm text-neutral-400 mb-1">Mensal</p>
-              <p className="font-bold text-lg">R$ 24,90</p>
-              <p className="text-xs text-neutral-500">/ mês</p>
+              <p className="text-sm text-neutral-400 mb-1">{PRICING.monthly.label}</p>
+              <p className="font-bold text-lg">{PRICING.monthly.display}</p>
+              <p className="text-xs text-neutral-500">{PRICING.monthly.period}</p>
             </button>
 
             <button
-              onClick={() => setSelectedPlan('yearly')}
+              onClick={() => setSelectedPlan('quarterly')}
               className={`rounded-2xl p-4 text-left border-2 transition-all relative ${
-                selectedPlan === 'yearly'
+                selectedPlan === 'quarterly'
                   ? 'border-accent-yellow bg-surface'
                   : 'border-neutral-800 bg-surface'
               }`}
             >
               <span className="absolute -top-2.5 right-3 bg-accent-yellow text-black text-xs font-bold px-2 py-0.5 rounded-full">
-                -60%
+                -{PRICING.quarterly.discountPercent}%
               </span>
-              <p className="text-sm text-neutral-400 mb-1">Anual</p>
-              <p className="font-bold text-lg">R$ 9,99</p>
-              <p className="text-xs text-neutral-500">/ mês</p>
+              <p className="text-sm text-neutral-400 mb-1">{PRICING.quarterly.label}</p>
+              <p className="font-bold text-lg">{PRICING.quarterly.displayPerMonth}</p>
+              <p className="text-xs text-neutral-500">{PRICING.quarterly.period}</p>
             </button>
           </div>
 
           <Button onClick={goToPayment}>Continuar</Button>
 
           <p className="text-neutral-500 text-xs text-center mt-3">
-            {selectedPlan === 'yearly' ? 'R$ 119,90/ano' : 'Cobrança mensal recorrente'}
+            {selectedPlan === 'quarterly'
+              ? PRICING.quarterly.footer
+              : PRICING.monthly.footer}
           </p>
 
           <div className="flex justify-center gap-4 mt-4 text-xs text-neutral-600">

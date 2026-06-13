@@ -26,7 +26,7 @@ const BENEFITS = [
   {
     emoji: '🧰',
     title: 'Simplifique seus hábitos. Uma ferramenta, zero caos.',
-    desc: 'Sem cadernos. Sem apps espalhados. Só 75 Dias',
+    desc: 'Sem cadernos. Sem apps espalhados. Só Reset90',
   },
 ]
 
@@ -38,7 +38,7 @@ export function BenefitsPage() {
       footer={<Button onClick={() => navigate('/onboarding/apresentacao')}>Continuar</Button>}
     >
       <h1 className="text-2xl font-bold mb-6 leading-tight">
-        Veja como o 75 Dias vai te ajudar
+        Veja como o Reset90 vai te ajudar
       </h1>
 
       <div className="space-y-5 flex-1">
