@@ -64,7 +64,7 @@ export function ChallengePreviewModal({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">{task.title}</p>
                   <p className="text-neutral-500 text-xs mt-0.5 leading-relaxed">
-                    {task.previewHint}
+                    {task.previewVerb}
                   </p>
                 </div>
               </div>

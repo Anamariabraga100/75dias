@@ -468,6 +468,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Faça pelo menos 3 refeições simples e evite junk food e refrigerante.',
         weekly: 'Manter alimentação básica e regular a semana toda.',
+        previewVerb: 'Comer de forma simples e saudável',
         previewHint: 'Comi de forma simples e saudável hoje',
       },
       {
@@ -478,6 +479,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Se hoje é dia de treino: 30 min de movimento (caminhada, academia ou casa).',
         weekly: '2 a 3 treinos por semana. Marque só nos dias que treinou.',
+        previewVerb: 'Treinar nos dias de treino',
         previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
       },
       {
@@ -488,6 +490,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Leia de 2 a 5 páginas hoje — qualquer livro que agregue.',
         weekly: 'Leitura diária, mesmo que poucas páginas.',
+        previewVerb: 'Ler minhas páginas diárias',
         previewHint: 'Li minhas páginas diárias',
       },
       {
@@ -498,6 +501,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Durma pelo menos 7 horas esta noite.',
         weekly: '5+ noites com 7h+ por semana.',
+        previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
       },
     ],
@@ -525,6 +529,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Evite industrializados, fast food e excesso de doces.',
         weekly: 'Alimentação limpa na maior parte da semana.',
+        previewVerb: 'Evitar industrializados e comer limpo',
         previewHint: 'Evitei industrializados e comi limpo hoje',
       },
       {
@@ -535,6 +540,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Se hoje é dia de treino: mínimo 40 min de exercício estruturado.',
         weekly: '3 a 4 sessões por semana. Marque nos dias que treinou.',
+        previewVerb: 'Treinar nos dias de treino',
         previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
       },
       {
@@ -545,6 +551,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Leia de 5 a 10 páginas hoje.',
         weekly: 'Leitura todos os dias da semana.',
+        previewVerb: 'Ler minhas páginas diárias',
         previewHint: 'Li minhas páginas diárias',
       },
       {
@@ -555,6 +562,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Zero pornografia. Marque ao final do dia se manteve.',
         weekly: '7 dias limpos por semana.',
+        previewVerb: 'Ficar longe de pornografia',
         previewHint: 'Fiquei longe de pornografia hoje',
       },
       {
@@ -565,6 +573,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Durma pelo menos 7 horas esta noite.',
         weekly: '5+ noites com 7h+ por semana.',
+        previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
       },
     ],
@@ -595,6 +604,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Siga sua dieta sem ultraprocessados, fast food ou doces em excesso.',
         weekly: '1 refeição livre por semana — escolha o dia e marque os demais como cumpridos.',
+        previewVerb: 'Seguir a dieta regrada',
         previewHint: 'Segui a dieta regrada hoje',
       },
       {
@@ -605,6 +615,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Tome sua dose diária de creatina (conforme orientação da embalagem ou profissional).',
         weekly: 'Todos os 7 dias da semana, sem falhar.',
+        previewVerb: 'Tomar creatina diariamente',
         previewHint: 'Tomei minha dose de creatina diária',
       },
       {
@@ -615,6 +626,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Se hoje é dia de treino: complete no mínimo 45 min (musculação, corrida ou similar).',
         weekly: '4 a 5 sessões por semana. Marque só nos dias em que treinou de fato.',
+        previewVerb: 'Treinar nos dias de treino',
         previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
       },
       {
@@ -625,6 +637,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Leia de 10 a 15 páginas hoje — preferencialmente não-ficção.',
         weekly: 'Leitura todos os dias da semana, mesmo que seja o mínimo de páginas.',
+        previewVerb: 'Ler minhas páginas diárias',
         previewHint: 'Li minhas páginas diárias',
       },
       {
@@ -637,6 +650,7 @@ export const CHALLENGES = {
           'Se hoje é dia de registro (a cada 3 dias), tire a foto de evolução — mesmo ângulo, luz e pose.',
         weekly:
           '1 foto a cada 3 dias (~30 registros no Reset90). Comparação de 7 em 7 dias e destaque a cada 30 dias.',
+        previewVerb: 'Tirar foto de evolução (nos dias de registro)',
         previewHint: 'Tirei minha foto de evolução (nos dias de registro)',
       },
       {
@@ -647,6 +661,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Nenhum acesso a pornografia. Marque ao final do dia se manteve.',
         weekly: '7 dias limpos por semana — cada dia é uma vitória individual.',
+        previewVerb: 'Ficar longe de pornografia',
         previewHint: 'Fiquei longe de pornografia hoje',
       },
       {
@@ -657,6 +672,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Abstinência total. Marque ao final do dia se manteve.',
         weekly: '7 dias seguidos sem masturbação — foco em disciplina e autocontrole.',
+        previewVerb: 'Manter abstinência',
         previewHint: 'Mantive abstinência hoje',
       },
       {
@@ -667,6 +683,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Nenhuma bebida alcoólica. Marque ao final do dia.',
         weekly: 'Semana 100% seca — zero exceções.',
+        previewVerb: 'Não beber álcool',
         previewHint: 'Não bebi álcool hoje',
       },
       {
@@ -677,6 +694,7 @@ export const CHALLENGES = {
         type: 'check' as const,
         daily: 'Durma pelo menos 7 horas esta noite. Marque amanhã ao acordar.',
         weekly: '5+ noites com 7h+ por semana para manter energia e recuperação.',
+        previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
       },
     ],
