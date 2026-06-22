@@ -6,6 +6,22 @@ import { syncProfileToCloud } from '../lib/userSync'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
 
+async function restoreSessionFromHash(): Promise<boolean> {
+  if (!supabase || !window.location.hash.includes('access_token=')) return false
+
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const access_token = hash.get('access_token')
+  const refresh_token = hash.get('refresh_token')
+  if (!access_token || !refresh_token) return false
+
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+  if (error) return false
+
+  const cleanUrl = `${window.location.pathname}${window.location.search}`
+  window.history.replaceState(null, '', cleanUrl)
+  return true
+}
+
 export function AuthCallbackPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -20,6 +36,17 @@ export function AuthCallbackPage() {
     let cancelled = false
 
     const finish = async () => {
+      await restoreSessionFromHash()
+
+      const code = searchParams.get('code')
+      if (code && supabase) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (exchangeError && !cancelled) {
+          setError(exchangeError.message)
+          return
+        }
+      }
+
       const session = await getCurrentSession()
       if (cancelled) return
 
@@ -76,7 +103,7 @@ export function AuthCallbackPage() {
           </button>
         </>
       ) : (
-        <p className="text-neutral-400 text-sm mt-6">Entrando com Google…</p>
+        <p className="text-neutral-400 text-sm mt-6">Entrando…</p>
       )}
     </div>
   )

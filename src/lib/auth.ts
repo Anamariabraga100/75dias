@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import type { NavigateFunction } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
+import { getAuthCallbackUrl, getGoogleOAuthStartUrl, useCustomGoogleOAuth } from './appUrl'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 export class EmailLinkedToGoogleError extends Error {
@@ -42,13 +43,18 @@ function assertClient() {
 }
 
 export async function signInWithGoogle(options?: { returning?: boolean; next?: string }) {
+  if (useCustomGoogleOAuth()) {
+    window.location.href = getGoogleOAuthStartUrl(options)
+    return
+  }
+
   const client = assertClient()
 
-  const params = new URLSearchParams()
-  if (options?.returning) params.set('returning', '1')
-  if (options?.next) params.set('next', options.next)
-  const qs = params.toString()
-  const redirectTo = `${window.location.origin}/auth/callback${qs ? `?${qs}` : ''}`
+  const params: Record<string, string> = {}
+  if (options?.returning) params.returning = '1'
+  if (options?.next) params.next = options.next
+
+  const redirectTo = getAuthCallbackUrl(Object.keys(params).length ? params : undefined)
 
   const { error } = await client.auth.signInWithOAuth({
     provider: 'google',
@@ -69,6 +75,9 @@ export async function signUpWithEmail(email: string, password: string): Promise<
   const { data, error } = await client.auth.signUp({
     email: normalized,
     password,
+    options: {
+      emailRedirectTo: getAuthCallbackUrl(),
+    },
   })
 
   if (error) {
@@ -89,8 +98,19 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
   if (data.session) return data.session
 
-  if (data.user && !data.session) {
-    throw new EmailConfirmationRequiredError()
+  const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
+    email: normalized,
+    password,
+  })
+
+  if (!signInError && signInData.session) {
+    return signInData.session
+  }
+
+  if (signInError && /email not confirmed/i.test(signInError.message)) {
+    throw new Error(
+      'Confirme o e-mail ou desative "Confirm email" no Supabase (Authentication → Email).'
+    )
   }
 
   return null

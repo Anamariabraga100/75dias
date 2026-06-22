@@ -25,7 +25,54 @@ Abra [http://localhost:5173](http://localhost:5173)
 
 ## Credenciais: Google + Supabase
 
-O login com Google usa **Supabase Auth**. As chaves do Google **não** entram no código nem na Vercel — só no painel do Supabase.
+Há **dois modos** de login Google:
+
+| Modo | Redirect no Google Cloud | Quando usar |
+|------|--------------------------|-------------|
+| **Custom (recomendado)** — igual Varvos | `https://SEU-DOMINIO.vercel.app/api/auth/callback/google` | Produção na Vercel |
+| **Supabase direto** | `https://SEU_PROJECT_REF.supabase.co/auth/v1/callback` | Dev local (`VITE_CUSTOM_GOOGLE_OAUTH` desligado) |
+
+### Modo custom (seu domínio, como varvos.com)
+
+Fluxo: **App → Google → `/api/auth/callback/google` → Supabase (sessão) → `/auth/callback`**
+
+#### Google Cloud Console
+
+1. **Authorized redirect URIs:**
+   ```
+   https://SEU-DOMINIO.vercel.app/api/auth/callback/google
+   ```
+2. **Authorized JavaScript origins:** `https://SEU-DOMINIO.vercel.app`
+
+#### Vercel — Environment Variables
+
+| Name | Onde |
+|------|------|
+| `VITE_CUSTOM_GOOGLE_OAUTH` | `true` |
+| `VITE_APP_URL` | `https://SEU-DOMINIO.vercel.app` |
+| `APP_URL` | mesma URL (servidor) |
+| `GOOGLE_CLIENT_ID` | Google Cloud (servidor) |
+| `GOOGLE_CLIENT_SECRET` | Google Cloud (servidor) |
+| `SUPABASE_URL` | URL do projeto |
+| `SUPABASE_ANON_KEY` | anon public key |
+| `VITE_SUPABASE_URL` | igual `SUPABASE_URL` |
+| `VITE_SUPABASE_ANON_KEY` | igual `SUPABASE_ANON_KEY` |
+
+No **Supabase → Authentication → Google**, ative com o **mesmo** Client ID + Secret (necessário para `signInWithIdToken`).
+
+Redeploy após salvar.
+
+#### Dev local
+
+Com `VITE_CUSTOM_GOOGLE_OAUTH=true`, use `npx vercel dev` (as rotas `/api/*` não rodam no `npm run dev` puro).
+
+Ou deixe `VITE_CUSTOM_GOOGLE_OAUTH=false` localmente e use o modo Supabase abaixo.
+
+---
+
+### Modo Supabase direto (dev / fallback)
+
+O login com Google passa pelo callback do Supabase antes de voltar ao app.
 
 ### Onde cada coisa fica
 
@@ -35,18 +82,15 @@ O login com Google usa **Supabase Auth**. As chaves do Google **não** entram no
 | **Project URL** + **anon public key** | Arquivo `.env.local` (local) e **Vercel → Environment Variables** |
 | **service_role key** | Só backend/scripts. **Nunca** no front, **nunca** com prefixo `VITE_` |
 
-### 1. Google Cloud Console
+### 1. Google Cloud Console (modo Supabase)
 
 1. [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**
 2. **Create Credentials** → **OAuth client ID** → tipo **Web application**
 3. **Authorized JavaScript origins**
    - `http://localhost:5173` (dev)
    - `https://SEU-DOMINIO.vercel.app` (produção)
-4. **Authorized redirect URIs** (obrigatório para Supabase)
+4. **Authorized redirect URIs**
    - `https://SEU_PROJECT_REF.supabase.co/auth/v1/callback`
-   - O `PROJECT_REF` está na URL do projeto Supabase (ex.: `abcdefghijklmnop`)
-
-Copie **Client ID** e **Client Secret** → cole no Supabase (passo 2).
 
 ### 2. Supabase Dashboard
 
@@ -87,15 +131,17 @@ Reinicie o `npm run dev` depois de salvar.
 
 ### Checklist rápido
 
-- [ ] Google OAuth criado com redirect `…supabase.co/auth/v1/callback`
-- [ ] Google ativado no Supabase com ID + Secret
+- [ ] **Modo custom:** redirect Google = `https://SEU-DOMINIO/api/auth/callback/google` + vars `GOOGLE_*` e `VITE_CUSTOM_GOOGLE_OAUTH=true`
+- [ ] **Modo Supabase:** redirect Google = `…supabase.co/auth/v1/callback`
 - [ ] Site URL e Redirect URLs no Supabase
 - [ ] `.env` ou `.env.local` com `VITE_SUPABASE_*` (local)
 - [ ] Mesmas vars na Vercel + **redeploy** após adicionar
+- [ ] `VITE_APP_URL` na Vercel = URL de produção (ex.: `https://seu-app.vercel.app`)
 - [ ] Supabase → Redirect URLs inclui `https://SEU-DOMINIO.vercel.app/auth/callback`
-- [ ] Google OAuth redirect aponta para `…supabase.co/auth/v1/callback`
+- [ ] Supabase → Email → **Confirm email OFF** (cadastro sem confirmação)
+- [ ] Google OAuth redirect (modo custom): `https://SEU-DOMINIO/api/auth/callback/google`
 
-Login Google implementado: landing → Google → `/auth/callback` → onboarding ou app.
+Login Google: landing → Google → **`/api/auth/callback/google`** (custom) ou Supabase → `/auth/callback` → onboarding ou app.
 
 ---
 
