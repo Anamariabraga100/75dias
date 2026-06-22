@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/ui/Logo'
-import { applySessionToStore, getCurrentSession } from '../lib/auth'
+import { applySessionToStore, formatAuthError, getCurrentSession } from '../lib/auth'
 import { syncProfileToCloud } from '../lib/userSync'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
@@ -26,6 +26,7 @@ export function AuthCallbackPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  const handledRef = useRef(false)
 
   useEffect(() => {
     if (!supabase) {
@@ -35,26 +36,16 @@ export function AuthCallbackPage() {
 
     let cancelled = false
 
-    const finish = async () => {
-      await restoreSessionFromHash()
-
-      const code = searchParams.get('code')
-      if (code && supabase) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-        if (exchangeError && !cancelled) {
-          setError(exchangeError.message)
-          return
-        }
-      }
-
+    const proceedWithSession = async () => {
       const session = await getCurrentSession()
-      if (cancelled) return
+      if (cancelled || handledRef.current) return
 
       if (!session) {
         setError('Não foi possível concluir o login. Tente novamente.')
         return
       }
 
+      handledRef.current = true
       applySessionToStore(session)
       void syncProfileToCloud()
 
@@ -74,13 +65,36 @@ export function AuthCallbackPage() {
       }
     }
 
+    const handleCallback = async () => {
+      if (handledRef.current) return
+
+      if (await restoreSessionFromHash()) {
+        await proceedWithSession()
+        return
+      }
+
+      const code = searchParams.get('code')
+      if (code) {
+        const { error: exchangeError } = await supabase!.auth.exchangeCodeForSession(code)
+        if (exchangeError && !cancelled) {
+          setError(formatAuthError(exchangeError.message))
+          return
+        }
+        await proceedWithSession()
+        return
+      }
+
+      // detectSessionInUrl pode já ter trocado o código
+      await proceedWithSession()
+    }
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        finish()
+      if (event === 'SIGNED_IN' && session && !handledRef.current) {
+        void proceedWithSession()
       }
     })
 
-    finish()
+    void handleCallback()
 
     return () => {
       cancelled = true
@@ -93,7 +107,7 @@ export function AuthCallbackPage() {
       <Logo size="lg" />
       {error ? (
         <>
-          <p className="text-red-400 text-sm text-center mt-6 mb-4">{error}</p>
+          <p className="text-red-400 text-sm text-center mt-6 mb-4 max-w-sm">{error}</p>
           <button
             type="button"
             onClick={() => navigate('/')}

@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { checkIsAdmin } from '../../lib/adminApi'
+import { isLocalAdminSession } from '../../lib/adminDev'
 import { supabase } from '../../lib/supabase'
 import { Logo } from '../ui/Logo'
 
@@ -8,6 +9,11 @@ export function AdminGuard() {
   const [status, setStatus] = useState<'loading' | 'allowed' | 'denied' | 'login'>('loading')
 
   useEffect(() => {
+    if (isLocalAdminSession()) {
+      setStatus('allowed')
+      return
+    }
+
     if (!supabase) {
       setStatus('denied')
       return
@@ -28,7 +34,7 @@ export function AdminGuard() {
 
     void verify()
 
-    const { data: listener } = supabase!.auth.onAuthStateChange(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
       void verify()
     })
 
@@ -56,7 +62,7 @@ export function AdminGuard() {
         <Logo size="lg" />
         <h1 className="text-xl font-bold mt-6 mb-2">Acesso restrito</h1>
         <p className="text-neutral-400 text-sm max-w-sm mb-6">
-          Esta área é só para administradores. Peça acesso ou faça login com uma conta autorizada.
+          Esta área é só para administradores.
         </p>
         <a href="/admin/login" className="text-accent-blue text-sm font-semibold hover:underline">
           Ir para login admin

@@ -11,7 +11,7 @@ import {
   navigateAfterAuth,
   signInWithGoogle,
 } from '../lib/auth'
-import { useGoogleIdentitySignIn } from '../lib/googleSignIn'
+import { useGoogleClientId } from '../lib/googleSignIn'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 function GoogleIcon() {
@@ -42,7 +42,8 @@ export function LandingPage() {
   const enterAsReturningUser = useAppStore((s) => s.enterAsReturningUser)
   const [loading, setLoading] = useState<'google' | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
-  const useGisPopup = useGoogleIdentitySignIn()
+  const { clientId: googleClientId, ready: googleReady } = useGoogleClientId()
+  const useGisPopup = Boolean(googleClientId)
 
   const startEmailSignup = () => navigate('/auth/email')
 
@@ -139,7 +140,7 @@ export function LandingPage() {
             )}
 
             <div className="mt-7 space-y-3 max-w-sm mx-auto w-full">
-              {useGisPopup ? (
+              {googleReady && useGisPopup ? (
                 <GoogleSignInOverlay
                   disabled={loading !== null}
                   onCredential={finishGoogleSession}

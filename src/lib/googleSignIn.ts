@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 declare global {
   interface Window {
     google?: {
@@ -22,6 +24,20 @@ declare global {
 }
 
 let gsiLoadPromise: Promise<void> | null = null
+let cachedServerClientId: string | null | undefined
+
+/** Client ID do Varvos — mesmo projeto Google, exibe "Varvos AI" no popup. */
+const VARVOS_GOOGLE_CLIENT_SUFFIX = 'hmi7irs5kg8n1u4q6oce79cs1t6mqfjh'
+
+function sanitizeClientId(id: string | undefined | null): string | null {
+  const trimmed = id?.trim()
+  if (!trimmed) return null
+  if (trimmed.includes(VARVOS_GOOGLE_CLIENT_SUFFIX)) {
+    console.warn('[Reset90] Client ID aponta para Varvos. Use credenciais do projeto Reset90.')
+    return null
+  }
+  return trimmed
+}
 
 export function loadGoogleIdentityScript(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve()
@@ -47,14 +63,45 @@ export function loadGoogleIdentityScript(): Promise<void> {
   return gsiLoadPromise
 }
 
-/** Abre popup do Google (como Varvos) e devolve o id_token JWT. */
-export function openGoogleSignInPopup(clientId: string): Promise<string> {
+/** Client ID do build (opcional — local). */
+export function getGoogleClientId(): string | null {
+  return sanitizeClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)
+}
+
+/** Client ID: VITE_ local ou GOOGLE_CLIENT_ID da Vercel via /api/auth/config (como Varvos). */
+export async function resolveGoogleClientId(): Promise<string | null> {
+  const fromEnv = getGoogleClientId()
+  if (fromEnv) return fromEnv
+
+  if (cachedServerClientId !== undefined) return cachedServerClientId
+
+  try {
+    const res = await fetch('/api/auth/config')
+    if (!res.ok) {
+      cachedServerClientId = null
+      return null
+    }
+    const data = (await res.json()) as { clientId?: string }
+    cachedServerClientId = sanitizeClientId(data.clientId)
+    return cachedServerClientId
+  } catch {
+    cachedServerClientId = null
+    return null
+  }
+}
+
+/** Abre popup do Google e devolve o id_token JWT. */
+export async function openGoogleSignInPopup(clientId?: string): Promise<string> {
+  const id = clientId ?? (await resolveGoogleClientId())
+  if (!id) throw new Error('Google OAuth não configurado.')
+
   return loadGoogleIdentityScript().then(
     () =>
       new Promise((resolve, reject) => {
         let settled = false
         const container = document.createElement('div')
-        container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;'
+        container.style.cssText =
+          'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;'
         document.body.appendChild(container)
 
         const finish = (action: () => void) => {
@@ -66,7 +113,7 @@ export function openGoogleSignInPopup(clientId: string): Promise<string> {
         }
 
         window.google!.accounts.id.initialize({
-          client_id: clientId,
+          client_id: id,
           ux_mode: 'popup',
           auto_select: false,
           cancel_on_tap_outside: true,
@@ -102,11 +149,26 @@ export function openGoogleSignInPopup(clientId: string): Promise<string> {
   )
 }
 
-export function getGoogleClientId(): string | null {
-  const id = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
-  return id?.trim() || null
-}
+/** Resolve Client ID (env ou API) — para decidir popup vs redirect. */
+export function useGoogleClientId(): { clientId: string | null; ready: boolean } {
+  const [clientId, setClientId] = useState<string | null>(() => getGoogleClientId())
+  const [ready, setReady] = useState(() => Boolean(getGoogleClientId()))
 
-export function useGoogleIdentitySignIn(): boolean {
-  return Boolean(getGoogleClientId())
+  useEffect(() => {
+    if (getGoogleClientId()) return
+
+    let cancelled = false
+    resolveGoogleClientId().then((id) => {
+      if (!cancelled) {
+        setClientId(id)
+        setReady(true)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { clientId, ready }
 }

@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Users, LogOut, ArrowLeft } from 'lucide-react'
 import { signOut } from '../../lib/auth'
+import { clearLocalAdminSession } from '../../lib/adminDev'
 
 const nav = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,6 +12,7 @@ export function AdminLayout() {
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
+    clearLocalAdminSession()
     await signOut()
     navigate('/admin/login', { replace: true })
   }

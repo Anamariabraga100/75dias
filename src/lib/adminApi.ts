@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isLocalAdminSession } from './adminDev'
 
 export type AdminProfile = {
   user_id: string
@@ -37,6 +38,19 @@ export type DashboardStats = {
   }[]
 }
 
+function emptyDashboardStats(): DashboardStats {
+  return {
+    salesToday: 0,
+    salesTodayCount: 0,
+    newUsersToday: 0,
+    totalSubscribers: 0,
+    totalRevenue: 0,
+    totalUsers: 0,
+    photosToday: 0,
+    recentPayments: [],
+  }
+}
+
 function startOfTodayIso() {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -49,6 +63,8 @@ function assertClient() {
 }
 
 export async function checkIsAdmin(): Promise<boolean> {
+  if (isLocalAdminSession()) return true
+
   const client = assertClient()
   const { data: userData } = await client.auth.getUser()
   const userId = userData.user?.id
@@ -66,6 +82,11 @@ export async function checkIsAdmin(): Promise<boolean> {
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const client = assertClient()
+  const { data: sessionData } = await client.auth.getSession()
+  if (isLocalAdminSession() && !sessionData.session) {
+    return emptyDashboardStats()
+  }
+
   const today = startOfTodayIso()
 
   const [paymentsTodayRes, paymentsAllRes, profilesRes, newTodayRes, photosTodayRes, recentRes] =
@@ -124,6 +145,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 }
 
 export async function fetchSubscribers(): Promise<AdminProfile[]> {
+  if (isLocalAdminSession()) {
+    const client = assertClient()
+    const { data: sessionData } = await client.auth.getSession()
+    if (!sessionData.session) return []
+  }
+
   const client = assertClient()
   const { data, error } = await client
     .from('profiles')
@@ -138,6 +165,12 @@ export async function fetchSubscribers(): Promise<AdminProfile[]> {
 }
 
 export async function fetchAllUsers(): Promise<AdminProfile[]> {
+  if (isLocalAdminSession()) {
+    const client = assertClient()
+    const { data: sessionData } = await client.auth.getSession()
+    if (!sessionData.session) return []
+  }
+
   const client = assertClient()
   const { data, error } = await client
     .from('profiles')

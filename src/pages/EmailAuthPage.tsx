@@ -19,7 +19,7 @@ import {
   signInWithGoogle,
   signUpWithEmail,
 } from '../lib/auth'
-import { useGoogleIdentitySignIn } from '../lib/googleSignIn'
+import { useGoogleClientId } from '../lib/googleSignIn'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 type Step = 'email' | 'password'
@@ -49,7 +49,8 @@ export function EmailAuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showGoogleHint, setShowGoogleHint] = useState(false)
-  const useGisPopup = useGoogleIdentitySignIn()
+  const { clientId: googleClientId, ready: googleReady } = useGoogleClientId()
+  const useGisPopup = Boolean(googleClientId)
 
   useEffect(() => {
     setStep('email')
@@ -220,8 +221,7 @@ export function EmailAuthPage() {
         </div>
       )}
 
-      {showGoogleHint && (
-        useGisPopup ? (
+      {showGoogleHint && (googleReady && useGisPopup ? (
           <GoogleSignInOverlay
             disabled={loading}
             onCredential={handleGoogleCredential}

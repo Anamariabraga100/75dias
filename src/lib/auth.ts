@@ -1,8 +1,13 @@
 import type { Session } from '@supabase/supabase-js'
 import type { NavigateFunction } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
-import { getAuthCallbackUrl, getGoogleOAuthStartUrl, useCustomGoogleOAuth } from './appUrl'
-import { getGoogleClientId, openGoogleSignInPopup } from './googleSignIn'
+import {
+  getAuthCallbackUrl,
+  getGoogleOAuthStartUrl,
+  isLocalDev,
+  useCustomGoogleOAuth,
+} from './appUrl'
+import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 export class EmailLinkedToGoogleError extends Error {
@@ -23,6 +28,24 @@ export class EmailConfirmationRequiredError extends Error {
   constructor() {
     super('Enviamos um link de confirmação para seu e-mail. Confirme antes de continuar.')
     this.name = 'EmailConfirmationRequiredError'
+  }
+}
+
+export class AdminEmailNotConfirmedError extends Error {
+  constructor(adminEmail: string) {
+    super(
+      `E-mail admin (${adminEmail}) não confirmado. Desative "Confirm email" no Supabase ou rode 002_bootstrap_admin.sql.`
+    )
+    this.name = 'AdminEmailNotConfirmedError'
+  }
+}
+
+export class AdminAccountSetupRequiredError extends Error {
+  constructor(adminEmail: string) {
+    super(
+      `Conta ${adminEmail} não existe no Supabase ou a senha do .env não confere. Crie o usuário em Authentication → Users com a mesma senha de VITE_ADMIN_PASSWORD.`
+    )
+    this.name = 'AdminAccountSetupRequiredError'
   }
 }
 
@@ -56,6 +79,9 @@ export function formatAuthError(message: string): string {
   if (/signup is disabled/i.test(message)) {
     return 'Cadastro por e-mail está desativado no momento.'
   }
+  if (/pkce|code verifier/i.test(message)) {
+    return 'Login expirou ou a porta mudou. Volte ao início e clique em "Continuar com Google" de novo.'
+  }
   return message
 }
 
@@ -81,22 +107,10 @@ export async function completeGoogleSignIn(idToken: string): Promise<Session> {
   return data.session
 }
 
-export async function signInWithGoogle(options?: {
+async function signInWithGoogleViaSupabase(options?: {
   returning?: boolean
   next?: string
-}): Promise<Session | void> {
-  const clientId = getGoogleClientId()
-
-  if (clientId) {
-    const idToken = await openGoogleSignInPopup(clientId)
-    return completeGoogleSignIn(idToken)
-  }
-
-  if (useCustomGoogleOAuth()) {
-    window.location.assign(getGoogleOAuthStartUrl(options))
-    return
-  }
-
+}): Promise<void> {
   const client = assertClient()
 
   const params: Record<string, string> = {}
@@ -115,6 +129,31 @@ export async function signInWithGoogle(options?: {
   })
 
   if (error) throw error
+}
+
+export async function signInWithGoogle(options?: {
+  returning?: boolean
+  next?: string
+}): Promise<Session | void> {
+  const clientId = await resolveGoogleClientId()
+
+  // Popup GIS — sem redirect, sem PKCE (localhost e produção)
+  if (clientId) {
+    const idToken = await openGoogleSignInPopup(clientId)
+    return completeGoogleSignIn(idToken)
+  }
+
+  if (isLocalDev()) {
+    await signInWithGoogleViaSupabase(options)
+    return
+  }
+
+  if (useCustomGoogleOAuth()) {
+    window.location.assign(getGoogleOAuthStartUrl(options))
+    return
+  }
+
+  await signInWithGoogleViaSupabase(options)
 }
 
 export async function signUpWithEmail(email: string, password: string): Promise<Session | null> {
@@ -181,6 +220,25 @@ export async function signInWithEmail(email: string, password: string): Promise<
   }
 
   return data.session
+}
+
+export async function signInAsAdmin(email: string, password: string): Promise<Session> {
+  const normalized = normalizeEmail(email)
+
+  try {
+    return await signInWithEmail(normalized, password)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+
+    if (/email not confirmed/i.test(message)) {
+      throw new AdminEmailNotConfirmedError(normalized)
+    }
+    if (/invalid login credentials/i.test(message)) {
+      throw new AdminAccountSetupRequiredError(normalized)
+    }
+
+    throw error
+  }
 }
 
 export function applySessionToStore(session: Session) {

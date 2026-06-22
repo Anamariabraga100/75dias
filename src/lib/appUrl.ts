@@ -1,19 +1,18 @@
-/** URL pública do app — produção usa VITE_APP_URL; local usa origin atual. */
+export function isLocalDev(): boolean {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
+/** Origin do app — no browser usa o domínio atual (produção ou localhost). */
 export function getAppOrigin(): string {
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return window.location.origin
-    }
+    return window.location.origin.replace(/\/$/, '')
   }
 
   const envUrl = import.meta.env.VITE_APP_URL as string | undefined
   if (envUrl?.trim()) {
     return envUrl.trim().replace(/\/$/, '')
-  }
-
-  if (typeof window !== 'undefined') {
-    return window.location.origin
   }
   return ''
 }
@@ -26,12 +25,7 @@ export function getAuthCallbackUrl(params?: Record<string, string>): string {
 
 export function useCustomGoogleOAuth(): boolean {
   if (import.meta.env.VITE_CUSTOM_GOOGLE_OAUTH !== 'true') return false
-
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    if (host === 'localhost' || host === '127.0.0.1') return false
-  }
-
+  if (isLocalDev()) return false
   return true
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getGoogleClientId, loadGoogleIdentityScript } from '../../lib/googleSignIn'
+import { loadGoogleIdentityScript, resolveGoogleClientId } from '../../lib/googleSignIn'
 
 interface GoogleSignInOverlayProps {
   children: React.ReactNode
@@ -22,10 +22,20 @@ export function GoogleSignInOverlay({
   const onCredentialRef = useRef(onCredential)
   const onErrorRef = useRef(onError)
   const [ready, setReady] = useState(false)
-  const clientId = getGoogleClientId()
+  const [clientId, setClientId] = useState<string | null>(null)
 
   onCredentialRef.current = onCredential
   onErrorRef.current = onError
+
+  useEffect(() => {
+    let cancelled = false
+    resolveGoogleClientId().then((id) => {
+      if (!cancelled) setClientId(id)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!clientId || !googleRef.current) return
