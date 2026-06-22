@@ -3,17 +3,23 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { OnboardingLayout, PageTitle } from '../components/layout/OnboardingLayout'
 import { Button } from '../components/ui/Button'
 import { InputField } from '../components/ui/InputField'
+import { PasswordChecklist, PasswordField } from '../components/ui/PasswordField'
+import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
 import {
   applySessionToStore,
   assertSupabaseReady,
+  completeGoogleSignIn,
   EmailAlreadyExistsError,
+  EmailConfirmationRequiredError,
   EmailLinkedToGoogleError,
+  formatAuthError,
   isValidEmail,
   navigateAfterAuth,
   signInWithEmail,
   signInWithGoogle,
   signUpWithEmail,
 } from '../lib/auth'
+import { useGoogleIdentitySignIn } from '../lib/googleSignIn'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 type Step = 'email' | 'password'
@@ -43,6 +49,7 @@ export function EmailAuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showGoogleHint, setShowGoogleHint] = useState(false)
+  const useGisPopup = useGoogleIdentitySignIn()
 
   useEffect(() => {
     setStep('email')
@@ -106,6 +113,11 @@ export function EmailAuthPage() {
       if (session) {
         applySessionToStore(session)
         navigateAfterAuth(navigate, { returning: !isSignup })
+        return
+      }
+
+      if (isSignup) {
+        setError('Conta criada! Confirme o e-mail enviado para continuar.')
       }
     } catch (e) {
       if (e instanceof EmailLinkedToGoogleError) {
@@ -113,10 +125,28 @@ export function EmailAuthPage() {
         setError(e.message)
       } else if (e instanceof EmailAlreadyExistsError) {
         setError(e.message)
+      } else if (e instanceof EmailConfirmationRequiredError) {
+        setError(e.message)
       } else {
-        setError(e instanceof Error ? e.message : 'Erro ao autenticar.')
+        const message = e instanceof Error ? e.message : 'Erro ao autenticar.'
+        setError(formatAuthError(message))
       }
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleCredential = async (idToken: string) => {
+    setError(null)
+    if (!isSupabaseConfigured()) return
+    try {
+      setLoading(true)
+      assertSupabaseReady()
+      const session = await completeGoogleSignIn(idToken)
+      applySessionToStore(session)
+      navigateAfterAuth(navigate, { returning: !isSignup })
+    } catch (e) {
+      setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
       setLoading(false)
     }
   }
@@ -127,9 +157,13 @@ export function EmailAuthPage() {
     try {
       setLoading(true)
       assertSupabaseReady()
-      await signInWithGoogle({ returning: !isSignup })
+      const session = await signInWithGoogle({ returning: !isSignup })
+      if (session) {
+        applySessionToStore(session)
+        navigateAfterAuth(navigate, { returning: !isSignup })
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao abrir login Google.')
+      setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')
       setLoading(false)
     }
   }
@@ -187,15 +221,33 @@ export function EmailAuthPage() {
       )}
 
       {showGoogleHint && (
-        <button
-          type="button"
-          onClick={handleGoogleFromHint}
-          disabled={loading}
-          className="landing-btn-google disabled:opacity-60 mb-4"
-        >
-          <GoogleIcon />
-          Continuar com Google
-        </button>
+        useGisPopup ? (
+          <GoogleSignInOverlay
+            disabled={loading}
+            onCredential={handleGoogleCredential}
+            onError={(msg) => setError(formatAuthError(msg))}
+            className="mb-4"
+          >
+            <button
+              type="button"
+              disabled={loading}
+              className="landing-btn-google disabled:opacity-60 w-full"
+            >
+              <GoogleIcon />
+              Continuar com Google
+            </button>
+          </GoogleSignInOverlay>
+        ) : (
+          <button
+            type="button"
+            onClick={handleGoogleFromHint}
+            disabled={loading}
+            className="landing-btn-google disabled:opacity-60 mb-4"
+          >
+            <GoogleIcon />
+            Continuar com Google
+          </button>
+        )
       )}
 
       <div className="mt-auto mb-4 space-y-3">
@@ -207,22 +259,34 @@ export function EmailAuthPage() {
             type="email"
           />
         ) : (
-          <>
-            <InputField
+          <div className="space-y-4">
+            <PasswordField
+              label={isSignup ? 'Escolha uma senha' : 'Sua senha'}
               value={password}
               onChange={setPassword}
-              placeholder="Senha"
-              type="password"
+              placeholder="Mínimo 6 caracteres"
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              hint={isSignup ? 'Use letras e números — fácil de lembrar, difícil de adivinhar.' : undefined}
             />
             {isSignup && (
-              <InputField
+              <PasswordField
+                label="Repita a senha"
                 value={confirmPassword}
                 onChange={setConfirmPassword}
-                placeholder="Confirmar senha"
-                type="password"
+                placeholder="Digite de novo"
+                autoComplete="new-password"
               />
             )}
-          </>
+            {isSignup ? (
+              <PasswordChecklist
+                password={password}
+                confirmPassword={confirmPassword}
+                showMatch
+              />
+            ) : (
+              <p className="text-sm text-neutral-500 px-1">Mínimo 6 caracteres.</p>
+            )}
+          </div>
         )}
       </div>
     </OnboardingLayout>

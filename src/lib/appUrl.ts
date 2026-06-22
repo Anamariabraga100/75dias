@@ -1,9 +1,17 @@
-/** URL pública do app — use na Vercel para OAuth voltar ao domínio certo (não localhost). */
+/** URL pública do app — produção usa VITE_APP_URL; local usa origin atual. */
 export function getAppOrigin(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return window.location.origin
+    }
+  }
+
   const envUrl = import.meta.env.VITE_APP_URL as string | undefined
   if (envUrl?.trim()) {
     return envUrl.trim().replace(/\/$/, '')
   }
+
   if (typeof window !== 'undefined') {
     return window.location.origin
   }
@@ -17,7 +25,14 @@ export function getAuthCallbackUrl(params?: Record<string, string>): string {
 }
 
 export function useCustomGoogleOAuth(): boolean {
-  return import.meta.env.VITE_CUSTOM_GOOGLE_OAUTH === 'true'
+  if (import.meta.env.VITE_CUSTOM_GOOGLE_OAUTH !== 'true') return false
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host === 'localhost' || host === '127.0.0.1') return false
+  }
+
+  return true
 }
 
 export function getGoogleOAuthStartUrl(options?: { returning?: boolean; next?: string }): string {
@@ -25,5 +40,7 @@ export function getGoogleOAuthStartUrl(options?: { returning?: boolean; next?: s
   if (options?.returning) params.set('returning', '1')
   if (options?.next) params.set('next', options.next)
   const qs = params.toString()
-  return `/api/auth/google${qs ? `?${qs}` : ''}`
+  const origin =
+    getAppOrigin() || (typeof window !== 'undefined' ? window.location.origin : '')
+  return `${origin}/api/auth/google${qs ? `?${qs}` : ''}`
 }

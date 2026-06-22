@@ -1,15 +1,16 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { encodeOAuthState, getAppUrl, getGoogleRedirectUri, requireEnv } from '../_lib/env'
+const { encodeOAuthState, getAppUrl, getGoogleRedirectUri, requireEnv } = require('../_lib/env')
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = function handler(req, res) {
   try {
-    const appUrl = getAppUrl()
+    const appUrl = getAppUrl(req)
     const clientId = requireEnv('GOOGLE_CLIENT_ID')
 
     if (!appUrl) {
       res.status(500).json({ error: 'Configure APP_URL ou VITE_APP_URL na Vercel.' })
       return
     }
+
+    const redirectUri = getGoogleRedirectUri(req)
 
     const state = encodeOAuthState({
       returning: typeof req.query.returning === 'string' ? req.query.returning : '',
@@ -18,7 +19,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
     const params = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: getGoogleRedirectUri(),
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid email profile',
       access_type: 'offline',

@@ -1,14 +1,13 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-import {
+const { createClient } = require('@supabase/supabase-js')
+const {
   decodeOAuthState,
   getAppUrl,
   getGoogleRedirectUri,
   requireEnv,
-} from '../../_lib/env'
+} = require('../../_lib/env')
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const appUrl = getAppUrl()
+module.exports = async function handler(req, res) {
+  const appUrl = getAppUrl(req)
   if (!appUrl) {
     res.status(500).send('Configure APP_URL na Vercel.')
     return
@@ -34,16 +33,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         code,
         client_id: requireEnv('GOOGLE_CLIENT_ID'),
         client_secret: requireEnv('GOOGLE_CLIENT_SECRET'),
-        redirect_uri: getGoogleRedirectUri(),
+        redirect_uri: getGoogleRedirectUri(req),
         grant_type: 'authorization_code',
       }),
     })
 
-    const tokens = (await tokenRes.json()) as {
-      id_token?: string
-      error?: string
-      error_description?: string
-    }
+    const tokens = await tokenRes.json()
 
     if (!tokenRes.ok || !tokens.id_token) {
       const detail = tokens.error_description || tokens.error || 'token_exchange_failed'
@@ -51,10 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const supabase = createClient(
-      requireEnv('SUPABASE_URL'),
-      requireEnv('SUPABASE_ANON_KEY')
-    )
+    const supabase = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_ANON_KEY'))
 
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',

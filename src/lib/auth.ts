@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { NavigateFunction } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
 import { getAuthCallbackUrl, getGoogleOAuthStartUrl, useCustomGoogleOAuth } from './appUrl'
+import { getGoogleClientId, openGoogleSignInPopup } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 export class EmailLinkedToGoogleError extends Error {
@@ -33,6 +34,31 @@ function isAlreadyRegisteredMessage(message: string) {
   return /already registered|already been registered|user already registered/i.test(message)
 }
 
+function isRateLimitMessage(message: string) {
+  return /rate limit|too many requests|over_email_send_rate_limit|over_request_rate_limit/i.test(
+    message
+  )
+}
+
+export function formatAuthError(message: string): string {
+  if (isRateLimitMessage(message)) {
+    return 'Muitas tentativas em pouco tempo. Aguarde 1–2 minutos e tente de novo, ou use "Continuar com Google".'
+  }
+  if (/email not confirmed/i.test(message)) {
+    return 'E-mail não confirmado. Confirme pelo link enviado ou desative "Confirm email" no Supabase.'
+  }
+  if (/invalid login credentials/i.test(message)) {
+    return 'E-mail ou senha incorretos. Se você entrou com Google antes, use "Continuar com Google".'
+  }
+  if (/password should be at least/i.test(message)) {
+    return 'A senha precisa ter pelo menos 6 caracteres.'
+  }
+  if (/signup is disabled/i.test(message)) {
+    return 'Cadastro por e-mail está desativado no momento.'
+  }
+  return message
+}
+
 function assertClient() {
   if (!supabase) {
     throw new Error(
@@ -42,9 +68,32 @@ function assertClient() {
   return supabase
 }
 
-export async function signInWithGoogle(options?: { returning?: boolean; next?: string }) {
+export async function completeGoogleSignIn(idToken: string): Promise<Session> {
+  const client = assertClient()
+  const { data, error } = await client.auth.signInWithIdToken({
+    provider: 'google',
+    token: idToken,
+  })
+
+  if (error) throw new Error(formatAuthError(error.message))
+  if (!data.session) throw new Error('Não foi possível iniciar a sessão.')
+
+  return data.session
+}
+
+export async function signInWithGoogle(options?: {
+  returning?: boolean
+  next?: string
+}): Promise<Session | void> {
+  const clientId = getGoogleClientId()
+
+  if (clientId) {
+    const idToken = await openGoogleSignInPopup(clientId)
+    return completeGoogleSignIn(idToken)
+  }
+
   if (useCustomGoogleOAuth()) {
-    window.location.href = getGoogleOAuthStartUrl(options)
+    window.location.assign(getGoogleOAuthStartUrl(options))
     return
   }
 
@@ -81,36 +130,34 @@ export async function signUpWithEmail(email: string, password: string): Promise<
   })
 
   if (error) {
+    if (isRateLimitMessage(error.message)) {
+      throw new Error(formatAuthError(error.message))
+    }
+
     if (isAlreadyRegisteredMessage(error.message)) {
-      const { error: signInError } = await client.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
         email: normalized,
         password,
       })
 
-      if (!signInError) {
-        throw new EmailAlreadyExistsError()
+      if (!signInError && signInData.session) {
+        return signInData.session
+      }
+
+      if (signInError && isRateLimitMessage(signInError.message)) {
+        throw new Error(formatAuthError(signInError.message))
       }
 
       throw new EmailLinkedToGoogleError()
     }
-    throw error
+
+    throw new Error(formatAuthError(error.message))
   }
 
   if (data.session) return data.session
 
-  const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
-    email: normalized,
-    password,
-  })
-
-  if (!signInError && signInData.session) {
-    return signInData.session
-  }
-
-  if (signInError && /email not confirmed/i.test(signInError.message)) {
-    throw new Error(
-      'Confirme o e-mail ou desative "Confirm email" no Supabase (Authentication → Email).'
-    )
+  if (data.user) {
+    throw new EmailConfirmationRequiredError()
   }
 
   return null
@@ -126,17 +173,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
   })
 
   if (error) {
-    if (/email not confirmed/i.test(error.message)) {
-      throw new Error(
-        'E-mail não confirmado. No Supabase: Authentication → Providers → Email → desative "Confirm email", ou confirme o e-mail.'
-      )
-    }
-    if (/invalid login credentials/i.test(error.message)) {
-      throw new Error(
-        'E-mail ou senha incorretos. Se você entrou com Google antes, use "Continuar com Google".'
-      )
-    }
-    throw error
+    throw new Error(formatAuthError(error.message))
   }
 
   if (!data.session) {

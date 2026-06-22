@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { Mail } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
 import { useAppStore } from '../store/useAppStore'
-import { assertSupabaseReady, signInWithGoogle } from '../lib/auth'
+import {
+  applySessionToStore,
+  assertSupabaseReady,
+  completeGoogleSignIn,
+  formatAuthError,
+  navigateAfterAuth,
+  signInWithGoogle,
+} from '../lib/auth'
+import { useGoogleIdentitySignIn } from '../lib/googleSignIn'
 import { isSupabaseConfigured } from '../lib/supabase'
 
 function GoogleIcon() {
@@ -33,10 +42,26 @@ export function LandingPage() {
   const enterAsReturningUser = useAppStore((s) => s.enterAsReturningUser)
   const [loading, setLoading] = useState<'google' | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
+  const useGisPopup = useGoogleIdentitySignIn()
 
   const startEmailSignup = () => navigate('/auth/email')
 
-  const handleGoogleLogin = async () => {
+  const finishGoogleSession = async (idToken: string) => {
+    setAuthError(null)
+    setLoading('google')
+    try {
+      assertSupabaseReady()
+      const session = await completeGoogleSignIn(idToken)
+      applySessionToStore(session)
+      navigateAfterAuth(navigate)
+    } catch (e) {
+      setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleGoogleLoginFallback = async () => {
     setAuthError(null)
     if (!isSupabaseConfigured()) {
       setAuthError('Login indisponível: variáveis do Supabase não encontradas.')
@@ -45,9 +70,13 @@ export function LandingPage() {
     try {
       setLoading('google')
       assertSupabaseReady()
-      await signInWithGoogle()
+      const session = await signInWithGoogle()
+      if (session) {
+        applySessionToStore(session)
+        navigateAfterAuth(navigate)
+      }
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Erro ao abrir login Google.')
+      setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')
       setLoading(null)
     }
   }
@@ -61,6 +90,18 @@ export function LandingPage() {
     }
     navigate('/auth/email?mode=login')
   }
+
+  const googleButton = (
+    <button
+      type="button"
+      onClick={useGisPopup ? undefined : handleGoogleLoginFallback}
+      disabled={loading !== null}
+      className="landing-btn-google disabled:opacity-60 w-full"
+    >
+      <GoogleIcon />
+      {loading === 'google' ? 'Abrindo Google…' : 'Continuar com Google'}
+    </button>
+  )
 
   return (
     <div className="min-h-dvh bg-black">
@@ -98,15 +139,18 @@ export function LandingPage() {
             )}
 
             <div className="mt-7 space-y-3 max-w-sm mx-auto w-full">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={loading !== null}
-                className="landing-btn-google disabled:opacity-60"
-              >
-                <GoogleIcon />
-                {loading === 'google' ? 'Abrindo Google…' : 'Continuar com Google'}
-              </button>
+              {useGisPopup ? (
+                <GoogleSignInOverlay
+                  disabled={loading !== null}
+                  onCredential={finishGoogleSession}
+                  onError={(msg) => setAuthError(formatAuthError(msg))}
+                  className="w-full"
+                >
+                  {googleButton}
+                </GoogleSignInOverlay>
+              ) : (
+                googleButton
+              )}
 
               <button
                 type="button"
