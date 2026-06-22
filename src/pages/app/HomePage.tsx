@@ -9,6 +9,7 @@ import { ChallengeConfirmModal } from '../../components/ui/ChallengeConfirmModal
 import { DailyTasksPanel } from '../../components/app/DailyTasksPanel'
 import { Logo } from '../../components/ui/Logo'
 import { Button } from '../../components/ui/Button'
+import { formatPreferredName } from '../../lib/displayName'
 import {
   CHALLENGE_LIST,
   CHALLENGES,
@@ -85,7 +86,7 @@ export function HomePage() {
   }
 
   const activeChallenge = challengeId ? CHALLENGES[challengeId] : null
-  const displayName = name ? name.charAt(0).toUpperCase() + name.slice(1) : undefined
+  const displayName = name?.trim() ? formatPreferredName(name) : undefined
 
   return (
     <AppShell>

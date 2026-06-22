@@ -9,6 +9,7 @@ import {
 } from './appUrl'
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
+import { hydrateFromCloud } from './userSync'
 
 export class EmailLinkedToGoogleError extends Error {
   constructor() {
@@ -261,7 +262,7 @@ export function applySessionToStore(session: Session) {
     null
 
   useAppStore.getState().setUserProfile({
-    name: displayName || undefined,
+    name: useAppStore.getState().name?.trim() || displayName || undefined,
     email: session.user.email ?? undefined,
     avatarUrl: avatarUrl || null,
   })
@@ -274,10 +275,10 @@ export async function signOut() {
   useAppStore.getState().clearUserProfile()
 }
 
-export function navigateAfterAuth(navigate: NavigateFunction, options?: { returning?: boolean }) {
-  const { onboardingComplete } = useAppStore.getState()
+export async function navigateAfterAuth(navigate: NavigateFunction, _options?: { returning?: boolean }) {
+  const onboardingDone = await hydrateFromCloud()
 
-  if (options?.returning || onboardingComplete) {
+  if (onboardingDone) {
     navigate('/app', { replace: true })
   } else {
     navigate('/onboarding/nome', { replace: true })

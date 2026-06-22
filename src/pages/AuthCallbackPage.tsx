@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/ui/Logo'
-import { applySessionToStore, formatAuthError, getCurrentSession } from '../lib/auth'
-import { syncProfileToCloud } from '../lib/userSync'
+import { applySessionToStore, formatAuthError, getCurrentSession, navigateAfterAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
-import { useAppStore } from '../store/useAppStore'
 
 async function restoreSessionFromHash(): Promise<boolean> {
   if (!supabase || !window.location.hash.includes('access_token=')) return false
@@ -47,7 +45,6 @@ export function AuthCallbackPage() {
 
       handledRef.current = true
       applySessionToStore(session)
-      void syncProfileToCloud()
 
       const next = searchParams.get('next')
       if (next && next.startsWith('/') && !next.startsWith('//')) {
@@ -56,13 +53,7 @@ export function AuthCallbackPage() {
       }
 
       const returning = searchParams.get('returning') === '1'
-      const { onboardingComplete } = useAppStore.getState()
-
-      if (returning || onboardingComplete) {
-        navigate('/app', { replace: true })
-      } else {
-        navigate('/onboarding/nome', { replace: true })
-      }
+      await navigateAfterAuth(navigate, { returning })
     }
 
     const handleCallback = async () => {
@@ -84,7 +75,6 @@ export function AuthCallbackPage() {
         return
       }
 
-      // detectSessionInUrl pode já ter trocado o código
       await proceedWithSession()
     }
 

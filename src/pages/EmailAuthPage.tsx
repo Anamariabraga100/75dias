@@ -113,7 +113,7 @@ export function EmailAuthPage() {
 
       if (session) {
         applySessionToStore(session)
-        navigateAfterAuth(navigate, { returning: !isSignup })
+        await navigateAfterAuth(navigate, { returning: !isSignup })
         return
       }
 
@@ -145,7 +145,7 @@ export function EmailAuthPage() {
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
       applySessionToStore(session)
-      navigateAfterAuth(navigate, { returning: !isSignup })
+      await navigateAfterAuth(navigate, { returning: !isSignup })
     } catch (e) {
       setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
       setLoading(false)
@@ -161,7 +161,7 @@ export function EmailAuthPage() {
       const session = await signInWithGoogle({ returning: !isSignup })
       if (session) {
         applySessionToStore(session)
-        navigateAfterAuth(navigate, { returning: !isSignup })
+        await navigateAfterAuth(navigate, { returning: !isSignup })
       }
     } catch (e) {
       setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')

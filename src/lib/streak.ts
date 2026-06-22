@@ -24,7 +24,7 @@ export function isDayComplete(
   return true
 }
 
-/** Dias consecutivos completos (hoje só conta se já fechou o dia). */
+/** Dias investidos — no desafio, mínimo 1 (dia 1 já conta). */
 export function computeInvestedDays(
   challengeAccepted: boolean,
   challengeId: ChallengeId | null,
@@ -45,5 +45,5 @@ export function computeInvestedDays(
     streak++
   }
 
-  return streak
+  return Math.max(streak, 1)
 }

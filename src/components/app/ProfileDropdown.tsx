@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart2, Flag, LogOut, Settings } from 'lucide-react'
+import { formatPreferredName } from '../../lib/displayName'
 import { useAppStore } from '../../store/useAppStore'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
 import { getPlanDisplayLabel } from '../../lib/pricing'
@@ -31,7 +32,7 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
     usePromoOffer,
   } = useAppStore()
 
-  const displayName = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Reset90'
+  const displayName = formatPreferredName(name)
   const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
   const levelLabel = challengeId ? LEVEL_META[challengeId].label : 'Sem desafio ativo'
   const displayDay = getDisplayDay(challengeAccepted, currentDay)

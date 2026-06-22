@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { UserAvatar } from '../ui/UserAvatar'
+import { formatPreferredName } from '../../lib/displayName'
 import { useAppStore } from '../../store/useAppStore'
 import { getPlanDisplayLabel } from '../../lib/pricing'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
@@ -22,7 +23,7 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
     usePromoOffer,
   } = useAppStore()
 
-  const displayName = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Reset90'
+  const displayName = formatPreferredName(name)
   const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
   const levelLabel = challengeId ? LEVEL_META[challengeId].label : 'Nenhum'
 

@@ -54,7 +54,7 @@ export function LandingPage() {
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
       applySessionToStore(session)
-      navigateAfterAuth(navigate)
+      await navigateAfterAuth(navigate)
     } catch (e) {
       setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
     } finally {
@@ -74,7 +74,7 @@ export function LandingPage() {
       const session = await signInWithGoogle()
       if (session) {
         applySessionToStore(session)
-        navigateAfterAuth(navigate)
+        await navigateAfterAuth(navigate)
       }
     } catch (e) {
       setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')

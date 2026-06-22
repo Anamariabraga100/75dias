@@ -1,4 +1,4 @@
-import type { PlanType } from '../store/useAppStore'
+import type { PlanType, ChallengeId } from '../store/useAppStore'
 import { useAppStore } from '../store/useAppStore'
 import { PRICING } from './pricing'
 import { computeInvestedDays } from './streak'
@@ -14,6 +14,70 @@ export async function getAuthUserId(): Promise<string | null> {
   if (!client) return null
   const { data } = await client.auth.getUser()
   return data.user?.id ?? null
+}
+
+type CloudProfile = {
+  name: string | null
+  email: string | null
+  avatar_url: string | null
+  selected_plan: string | null
+  use_promo_offer: boolean
+  payment_complete: boolean
+  onboarding_complete: boolean
+  challenge_id: string | null
+  challenge_accepted: boolean
+  current_day: number
+  discipline_score: number | null
+}
+
+function isChallengeId(value: string | null): value is ChallengeId {
+  return value === 'iniciante' || value === 'intermediario' || value === 'implacavel'
+}
+
+/** Carrega progresso do Supabase — evita pular onboarding por cache local. */
+export async function hydrateFromCloud(): Promise<boolean> {
+  const client = getClient()
+  const userId = await getAuthUserId()
+  if (!client || !userId) return false
+
+  const state = useAppStore.getState()
+
+  if (state.authUserId && state.authUserId !== userId) {
+    useAppStore.getState().resetProgressForNewAccount(userId)
+  }
+
+  const { data: profile, error } = await client
+    .from('profiles')
+    .select(
+      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
+    )
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !profile) {
+    useAppStore.getState().resetProgressForNewAccount(userId)
+    return false
+  }
+
+  const row = profile as CloudProfile
+  const challengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
+
+  useAppStore.setState({
+    authUserId: userId,
+    name: row.name?.trim() || state.name,
+    email: row.email || state.email,
+    avatarUrl: row.avatar_url ?? state.avatarUrl,
+    selectedPlan: row.selected_plan === 'monthly' ? 'monthly' : 'quarterly',
+    usePromoOffer: row.use_promo_offer,
+    paymentComplete: row.payment_complete,
+    onboardingComplete: row.onboarding_complete,
+    challengeId,
+    challengeAccepted: row.challenge_accepted,
+    currentDay: Math.min(90, Math.max(1, row.current_day ?? 1)),
+    disciplineScore: row.discipline_score ?? state.disciplineScore,
+  })
+
+  return Boolean(row.onboarding_complete && row.payment_complete)
 }
 
 export async function syncProfileToCloud() {

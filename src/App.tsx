@@ -25,6 +25,7 @@ import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminSubscribersPage } from './pages/admin/AdminSubscribersPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
+import { OnboardingGuard } from './components/onboarding/OnboardingGuard'
 
 export default function App() {
   return (
@@ -35,31 +36,32 @@ export default function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/auth/email" element={<EmailAuthPage />} />
 
-        {/* Funil comercial enxuto */}
-        <Route path="/onboarding/nome" element={<NamePage />} />
-        <Route path="/onboarding/objetivos" element={<GoalsPage />} />
-        <Route path="/onboarding/quiz/:step" element={<RoutineQuestionPage />} />
-        <Route path="/onboarding/resultado" element={<ScorePage />} />
-        <Route path="/onboarding/criando" element={<CreatingPage />} />
-        <Route path="/onboarding/planos" element={<PaywallPage />} />
-        <Route path="/onboarding/pagamento" element={<PaymentPage />} />
-        <Route path="/onboarding/pagamento/sucesso" element={<PaymentSuccessPage />} />
-        <Route path="/onboarding/oferta" element={<OfferPage />} />
-        <Route path="/onboarding/inicio" element={<StartDatePage />} />
+        <Route path="/onboarding" element={<OnboardingGuard />}>
+          <Route path="nome" element={<NamePage />} />
+          <Route path="objetivos" element={<GoalsPage />} />
+          <Route path="quiz/:step" element={<RoutineQuestionPage />} />
+          <Route path="resultado" element={<ScorePage />} />
+          <Route path="criando" element={<CreatingPage />} />
+          <Route path="planos" element={<PaywallPage />} />
+          <Route path="pagamento" element={<PaymentPage />} />
+          <Route path="pagamento/sucesso" element={<PaymentSuccessPage />} />
+          <Route path="oferta" element={<OfferPage />} />
+          <Route path="inicio" element={<StartDatePage />} />
+          <Route path="contrato" element={<ContractPage />} />
+          <Route path="desafio" element={<ChallengeSelectPage />} />
 
-        {/* Atalhos do funil antigo */}
-        <Route path="/onboarding/pronto" element={<Navigate to="/onboarding/nome" replace />} />
-        <Route path="/onboarding/beneficios" element={<Navigate to="/onboarding/nome" replace />} />
-        <Route path="/onboarding/apresentacao" element={<Navigate to="/onboarding/nome" replace />} />
-        <Route path="/onboarding/genero" element={<Navigate to="/onboarding/objetivos" replace />} />
-        <Route path="/onboarding/rotina/:step" element={<LegacyRotinaRedirect />} />
-        <Route path="/onboarding/ciencia" element={<Navigate to="/onboarding/resultado" replace />} />
-        <Route path="/onboarding/dia/:day" element={<Navigate to="/onboarding/planos" replace />} />
-        <Route path="/onboarding/plano" element={<Navigate to="/onboarding/planos" replace />} />
-        <Route path="/onboarding/transformacao" element={<Navigate to="/onboarding/planos" replace />} />
-        <Route path="/onboarding/contrato" element={<ContractPage />} />
-        <Route path="/onboarding/desafio" element={<ChallengeSelectPage />} />
-        <Route path="/onboarding/niveis" element={<Navigate to="/app" replace />} />
+          {/* Atalhos do funil antigo */}
+          <Route path="pronto" element={<Navigate to="/onboarding/nome" replace />} />
+          <Route path="beneficios" element={<Navigate to="/onboarding/nome" replace />} />
+          <Route path="apresentacao" element={<Navigate to="/onboarding/nome" replace />} />
+          <Route path="genero" element={<Navigate to="/onboarding/objetivos" replace />} />
+          <Route path="rotina/:step" element={<LegacyRotinaRedirect />} />
+          <Route path="ciencia" element={<Navigate to="/onboarding/resultado" replace />} />
+          <Route path="dia/:day" element={<Navigate to="/onboarding/planos" replace />} />
+          <Route path="plano" element={<Navigate to="/onboarding/planos" replace />} />
+          <Route path="transformacao" element={<Navigate to="/onboarding/planos" replace />} />
+          <Route path="niveis" element={<Navigate to="/app" replace />} />
+        </Route>
 
         <Route path="/app" element={<HomePage />} />
         <Route path="/app/hoje" element={<Navigate to="/app" replace />} />

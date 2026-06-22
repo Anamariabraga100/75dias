@@ -19,12 +19,15 @@ export function NamePage() {
         </Button>
       }
     >
-      <PageTitle title="Qual seu nome?" subtitle="Vamos personalizar seu Reset90" />
+      <PageTitle
+        title="Como você gosta de ser chamado?"
+        subtitle="Usamos esse nome no seu perfil e nas mensagens do app — do seu jeito."
+      />
       <div className="mt-auto mb-4">
         <InputField
           value={name}
           onChange={setName}
-          placeholder="Seu nome"
+          placeholder="Ex.: Lu, Ana, João…"
         />
       </div>
     </OnboardingLayout>

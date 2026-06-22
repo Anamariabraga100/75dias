@@ -1,27 +1,32 @@
 import { useEffect } from 'react'
 import { applySessionToStore, getCurrentSession } from '../../lib/auth'
-import { syncProfileToCloud } from '../../lib/userSync'
+import { hydrateFromCloud, scheduleProfileSync } from '../../lib/userSync'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../store/useAppStore'
 
-/** Mantém nome, e-mail e foto do Google sincronizados com a sessão Supabase. */
+/** Mantém sessão Supabase e progresso sincronizado (cloud → local). */
 export function AuthSessionSync() {
   useEffect(() => {
     if (!supabase) return
 
-    getCurrentSession().then((session) => {
+    const syncSession = async () => {
+      const session = await getCurrentSession()
       if (session) {
         applySessionToStore(session)
-        void syncProfileToCloud()
+        await hydrateFromCloud()
+        scheduleProfileSync()
       }
-    })
+    }
+
+    void syncSession()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         applySessionToStore(session)
-        void syncProfileToCloud()
+        await hydrateFromCloud()
+        scheduleProfileSync()
         return
       }
       if (event === 'SIGNED_OUT') {

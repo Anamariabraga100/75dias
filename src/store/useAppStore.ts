@@ -112,6 +112,7 @@ interface AppState {
   mirrorPhotos: Record<number, string>
   taskChecksByDay: Record<number, Record<string, boolean>>
   readNotificationIds: string[]
+  authUserId: string | null
 
   setName: (name: string) => void
   setUserProfile: (profile: { name?: string; email?: string; avatarUrl?: string | null }) => void
@@ -137,6 +138,7 @@ interface AppState {
   toggleTaskCheck: (day: number, taskId: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: (ids: string[]) => void
+  resetProgressForNewAccount: (userId: string) => void
   reset: () => void
 }
 
@@ -190,6 +192,7 @@ const initialState = {
   mirrorPhotos: {} as Record<number, string>,
   taskChecksByDay: {} as Record<number, Record<string, boolean>>,
   readNotificationIds: [] as string[],
+  authUserId: null as string | null,
 }
 
 export const useAppStore = create<AppState>()(
@@ -197,10 +200,13 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       ...initialState,
 
-      setName: (name) => set({ name }),
+      setName: (name) => {
+        set({ name })
+        if (name.trim().length >= 2) scheduleProfileSync()
+      },
       setUserProfile: (profile) =>
         set((state) => ({
-          name: profile.name ?? state.name,
+          name: state.name?.trim() ? state.name : (profile.name ?? state.name),
           email: profile.email ?? state.email,
           avatarUrl: profile.avatarUrl !== undefined ? profile.avatarUrl : state.avatarUrl,
         })),
@@ -322,6 +328,14 @@ export const useAppStore = create<AppState>()(
         const read = new Set([...get().readNotificationIds, ...ids])
         set({ readNotificationIds: [...read] })
       },
+      resetProgressForNewAccount: (userId) =>
+        set((state) => ({
+          ...initialState,
+          name: state.name,
+          email: state.email,
+          avatarUrl: state.avatarUrl,
+          authUserId: userId,
+        })),
       reset: () => set(initialState),
     }),
     {
