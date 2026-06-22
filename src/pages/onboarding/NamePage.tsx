@@ -13,13 +13,13 @@ export function NamePage() {
       footer={
         <Button
           disabled={name.trim().length < 2}
-          onClick={() => navigate('/onboarding/genero')}
+          onClick={() => navigate('/onboarding/objetivos')}
         >
           Continuar
         </Button>
       }
     >
-      <PageTitle title="Como podemos te chamar?" />
+      <PageTitle title="Qual seu nome?" subtitle="Vamos personalizar seu Reset90" />
       <div className="mt-auto mb-4">
         <InputField
           value={name}

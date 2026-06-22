@@ -94,14 +94,14 @@ export function HomePage() {
 
       {!challengeAccepted ? (
         <>
-          <div className="px-4 mb-2 shrink-0">
-            <h1 className="text-lg font-bold">Escolha seu nível</h1>
-            <p className="text-neutral-500 text-xs">
+          <div className="px-5 mb-6 shrink-0">
+            <h1 className="text-xl font-bold mb-2">Escolha seu nível</h1>
+            <p className="text-neutral-500 text-sm leading-relaxed">
               90 dias de disciplina — entre na jornada que combina com você
             </p>
           </div>
 
-          <div className="px-4 flex flex-col gap-2 pb-2">
+          <div className="px-5 flex flex-col gap-6 pb-8">
             {CHALLENGE_LIST.map((c) => (
               <ChallengeLevelCard
                 key={c.id}
@@ -116,34 +116,36 @@ export function HomePage() {
           </div>
 
           {name && (
-            <p className="text-center text-neutral-600 text-xs pb-2">
-              {name}, o momento de agir é agora
+            <p className="text-center text-neutral-500 text-sm pb-6 px-5 -mt-2">
+              {displayName}, o momento de agir é agora
             </p>
           )}
         </>
       ) : (
-        <div className="px-4 pb-4">
+        <div className="px-5 pb-6 pt-1">
           {activeChallenge && challengeId && (
-            <div className="relative rounded-2xl overflow-hidden mb-4 border border-accent-blue/30">
-              <div className="relative h-16">
+            <div className="relative rounded-3xl overflow-hidden mb-4 border border-accent-blue/30">
+              <div className="relative aspect-[21/9] max-h-[140px] w-full">
                 <img
                   src={activeChallenge.image}
                   alt={LEVEL_META[challengeId].label}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className={`absolute inset-0 w-full h-full object-cover ${LEVEL_META[challengeId].imagePosition}`}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/60" />
-                <div className="absolute inset-0 px-3 flex items-center justify-between">
+                <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
+                <div className="absolute inset-0 px-4 flex items-center justify-between">
                   <div>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${activeChallenge.badgeColor}`}
+                      className={`text-xs font-bold px-2.5 py-1 rounded-lg ${activeChallenge.badgeColor}`}
                     >
                       {activeChallenge.badge}
                     </span>
-                    <p className="font-bold text-sm mt-1">{LEVEL_META[challengeId].label}</p>
+                    <p className="font-bold text-base mt-1.5 drop-shadow-md">
+                      {LEVEL_META[challengeId].label}
+                    </p>
                   </div>
                   <Button
                     variant="danger"
-                    className="!w-auto !py-2 !px-4 !text-xs"
+                    className="!w-auto !py-2 !px-4 !text-xs shrink-0"
                     onClick={requestQuit}
                   >
                     Desistir

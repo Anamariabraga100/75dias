@@ -1,21 +1,22 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { OnboardingLayout, PageTitle } from '../../components/layout/OnboardingLayout'
-import { Button } from '../../components/ui/Button'
 import { SelectionCard } from '../../components/ui/SelectionCard'
 import {
+  QUIZ_STEP_ORDER,
   ROUTINE_STEPS,
   useAppStore,
   type RoutineAnswers,
   type RoutineStepId,
 } from '../../store/useAppStore'
 
-const STEP_ORDER: RoutineStepId[] = ['1', '2', '3', '4', '5', '6']
+const ADVANCE_MS = 320
 
 function StepProgress({ current }: { current: RoutineStepId }) {
-  const idx = STEP_ORDER.indexOf(current)
+  const idx = QUIZ_STEP_ORDER.indexOf(current)
   return (
-    <div className="flex items-center gap-1.5 mb-6">
-      {STEP_ORDER.map((step, i) => (
+    <div className="flex items-center gap-1 mb-5">
+      {QUIZ_STEP_ORDER.map((step, i) => (
         <div
           key={step}
           className={`h-1 flex-1 rounded-full transition-colors ${
@@ -27,85 +28,55 @@ function StepProgress({ current }: { current: RoutineStepId }) {
   )
 }
 
-function isQuestionSkipped(
-  question: (typeof ROUTINE_STEPS)[RoutineStepId]['questions'][number],
-  answers: RoutineAnswers
-): boolean {
-  if (!question.skipWhen) return false
-  return answers[question.skipWhen.key] === question.skipWhen.value
-}
-
 export function RoutineQuestionPage() {
   const { step } = useParams<{ step: string }>()
   const navigate = useNavigate()
   const { routineAnswers, setRoutineAnswer, computeScores } = useAppStore()
+  const advancing = useRef(false)
 
-  const config = ROUTINE_STEPS[step as RoutineStepId]
+  const stepNum = step as RoutineStepId
+  const config = ROUTINE_STEPS[stepNum]
+
+  useEffect(() => {
+    advancing.current = false
+  }, [step])
+
   if (!config) return null
 
-  const visibleQuestions = config.questions.filter((q) => !isQuestionSkipped(q, routineAnswers))
-  const allAnswered = visibleQuestions.every((q) => routineAnswers[q.key] !== null)
-  const stepNum = step as RoutineStepId
+  const question = config.questions[0]
 
-  const handleContinue = () => {
-    if (stepNum === '6') computeScores()
-    navigate(config.next)
-  }
+  const handleSelect = (value: RoutineAnswers[typeof question.key]) => {
+    if (advancing.current) return
+    advancing.current = true
+    setRoutineAnswer(question.key, value)
 
-  const handleSelect = (
-    key: keyof RoutineAnswers,
-    value: RoutineAnswers[typeof key],
-    skipWhen?: { key: keyof RoutineAnswers; value: string }
-  ) => {
-    setRoutineAnswer(key, value)
-    if (skipWhen && value === skipWhen.value) {
+    if (question.key === 'studySituation' && value === 'none') {
       setRoutineAnswer('studyFrequency', 'none')
     }
+
+    setTimeout(() => {
+      if (stepNum === '6') computeScores()
+      navigate(config.next)
+    }, ADVANCE_MS)
   }
 
   return (
-    <OnboardingLayout
-      footer={
-        <Button disabled={!allAnswered} onClick={handleContinue}>
-          {stepNum === '6' ? 'Analisar minha rotina' : 'Continuar'}
-        </Button>
-      }
-    >
+    <OnboardingLayout showLogo={false}>
       <StepProgress current={stepNum} />
-      <PageTitle title={config.title} subtitle={config.subtitle} />
+      <PageTitle title={config.title} subtitle={config.subtitle} className="mb-5" />
 
-      <div className="space-y-8">
-        {config.questions.map((question) => {
-          if (isQuestionSkipped(question, routineAnswers)) return null
-
-          return (
-            <div key={question.key}>
-              <p className="text-neutral-300 font-medium mb-3 flex items-center gap-2">
-                <span>{question.emoji}</span>
-                {question.label}
-              </p>
-              <div className="space-y-3">
-                {question.options.map((opt) => (
-                  <SelectionCard
-                    key={opt.value}
-                    emoji={opt.emoji}
-                    label={opt.label}
-                    selected={routineAnswers[question.key] === opt.value}
-                    onClick={() =>
-                      handleSelect(
-                        question.key,
-                        opt.value as RoutineAnswers[typeof question.key],
-                        question.key === 'studySituation'
-                          ? { key: 'studySituation', value: 'none' }
-                          : undefined
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        })}
+      <div className="space-y-2.5 flex-1">
+        {question.options.map((opt) => (
+          <SelectionCard
+            key={opt.value}
+            emoji={opt.emoji}
+            label={opt.label}
+            selected={routineAnswers[question.key] === opt.value}
+            onClick={() =>
+              handleSelect(opt.value as RoutineAnswers[typeof question.key])
+            }
+          />
+        ))}
       </div>
     </OnboardingLayout>
   )

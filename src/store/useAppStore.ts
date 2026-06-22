@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { analyzeProfile } from './profileAnalysis'
+import { logMirrorPhotoToCloud, scheduleProfileSync } from '../lib/userSync'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -87,6 +88,8 @@ export interface RadarScores {
 
 interface AppState {
   name: string
+  email: string
+  avatarUrl: string | null
   gender: Gender
   goals: Goal[]
   routineAnswers: RoutineAnswers
@@ -106,8 +109,13 @@ interface AppState {
   onboardingComplete: boolean
   paymentComplete: boolean
   usePromoOffer: boolean
+  mirrorPhotos: Record<number, string>
+  taskChecksByDay: Record<number, Record<string, boolean>>
+  readNotificationIds: string[]
 
   setName: (name: string) => void
+  setUserProfile: (profile: { name?: string; email?: string; avatarUrl?: string | null }) => void
+  clearUserProfile: () => void
   setGender: (gender: Gender) => void
   toggleGoal: (goal: Goal) => void
   setRoutineAnswer: <K extends keyof RoutineAnswers>(
@@ -122,8 +130,13 @@ interface AppState {
   quitChallenge: () => void
   setStartDate: (option: StartDateOption, customDate?: string) => void
   completeOnboarding: () => void
+  enterAsReturningUser: () => void
   setPaymentComplete: () => void
   setUsePromoOffer: (value: boolean) => void
+  registerMirrorPhoto: (day: number, photoUrl: string) => void
+  toggleTaskCheck: (day: number, taskId: string) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: (ids: string[]) => void
   reset: () => void
 }
 
@@ -153,6 +166,8 @@ const defaultRadarScores: RadarScores = {
 
 const initialState = {
   name: '',
+  email: '',
+  avatarUrl: null as string | null,
   gender: null as Gender,
   goals: [] as Goal[],
   routineAnswers: emptyRoutineAnswers,
@@ -172,6 +187,9 @@ const initialState = {
   onboardingComplete: false,
   paymentComplete: false,
   usePromoOffer: false,
+  mirrorPhotos: {} as Record<number, string>,
+  taskChecksByDay: {} as Record<number, Record<string, boolean>>,
+  readNotificationIds: [] as string[],
 }
 
 export const useAppStore = create<AppState>()(
@@ -180,6 +198,13 @@ export const useAppStore = create<AppState>()(
       ...initialState,
 
       setName: (name) => set({ name }),
+      setUserProfile: (profile) =>
+        set((state) => ({
+          name: profile.name ?? state.name,
+          email: profile.email ?? state.email,
+          avatarUrl: profile.avatarUrl !== undefined ? profile.avatarUrl : state.avatarUrl,
+        })),
+      clearUserProfile: () => set({ email: '', avatarUrl: null }),
       setGender: (gender) => set({ gender }),
       toggleGoal: (goal) => {
         const goals = get().goals
@@ -208,15 +233,95 @@ export const useAppStore = create<AppState>()(
       setSigned: (signed) => set({ signed }),
       setSelectedPlan: (plan) => set({ selectedPlan: plan }),
       setChallengeId: (id) => set({ challengeId: id }),
-      acceptChallenge: (id) =>
-        set({ challengeId: id, challengeAccepted: true, currentDay: 1 }),
-      quitChallenge: () =>
-        set({ challengeId: null, challengeAccepted: false, currentDay: 1 }),
+      acceptChallenge: (id) => {
+        set({
+          challengeId: id,
+          challengeAccepted: true,
+          currentDay: 1,
+          mirrorPhotos: {},
+          taskChecksByDay: {},
+        })
+        scheduleProfileSync()
+      },
+      quitChallenge: () => {
+        set({
+          challengeId: null,
+          challengeAccepted: false,
+          currentDay: 1,
+          mirrorPhotos: {},
+          taskChecksByDay: {},
+        })
+        scheduleProfileSync()
+      },
       setStartDate: (option, customDate) =>
         set({ startDate: option, customStartDate: customDate ?? null, currentDay: 1 }),
-      completeOnboarding: () => set({ onboardingComplete: true, currentDay: 1 }),
-      setPaymentComplete: () => set({ paymentComplete: true }),
+      completeOnboarding: () => {
+        set({ onboardingComplete: true, currentDay: 1 })
+        scheduleProfileSync()
+      },
+      enterAsReturningUser: () =>
+        set((state) => ({
+          onboardingComplete: true,
+          paymentComplete: true,
+          currentDay: 1,
+          recommendedChallenge: state.recommendedChallenge ?? 'intermediario',
+        })),
+      setPaymentComplete: () => {
+        set({ paymentComplete: true })
+        scheduleProfileSync()
+      },
       setUsePromoOffer: (value) => set({ usePromoOffer: value }),
+      registerMirrorPhoto: (day, photoUrl) => {
+        const current = get().mirrorPhotos
+        if (current[day]) return
+        set({
+          mirrorPhotos: { ...current, [day]: photoUrl },
+          readNotificationIds: [
+            ...get().readNotificationIds.filter(
+              (id) => id !== `photo-due-${day}` && !id.startsWith('photo-missed-')
+            ),
+            `photo-due-${day}`,
+          ],
+        })
+        void logMirrorPhotoToCloud(day)
+      },
+      toggleTaskCheck: (day, taskId) => {
+        const byDay = get().taskChecksByDay
+        const dayChecks = byDay[day] ?? {}
+        const next = !dayChecks[taskId]
+        const updatedDayChecks = { ...dayChecks, [taskId]: next }
+        set({
+          taskChecksByDay: {
+            ...byDay,
+            [day]: updatedDayChecks,
+          },
+        })
+        if (next) {
+          const challengeId = get().challengeId
+          if (!challengeId) return
+          const pending = CHALLENGES[challengeId].tasks.filter(
+            (t) => t.type === 'check' && !updatedDayChecks[t.id]
+          )
+          if (pending.length === 0) {
+            set({
+              readNotificationIds: [
+                ...get().readNotificationIds.filter((id) => id !== `habits-pending-${day}`),
+                `habits-pending-${day}`,
+              ],
+            })
+          }
+        }
+        scheduleProfileSync()
+      },
+      markNotificationRead: (id) => {
+        const read = get().readNotificationIds
+        if (read.includes(id)) return
+        set({ readNotificationIds: [...read, id] })
+      },
+      markAllNotificationsRead: (ids) => {
+        const read = new Set([...get().readNotificationIds, ...ids])
+        set({ readNotificationIds: [...read] })
+      },
       reset: () => set(initialState),
     }),
     {
@@ -239,6 +344,8 @@ export const useAppStore = create<AppState>()(
 
 export type RoutineStepId = '1' | '2' | '3' | '4' | '5' | '6'
 
+export const QUIZ_STEP_ORDER: RoutineStepId[] = ['1', '2', '3', '4', '5', '6']
+
 export const ROUTINE_STEPS: Record<
   RoutineStepId,
   {
@@ -255,194 +362,124 @@ export const ROUTINE_STEPS: Record<
   }
 > = {
   '1': {
-    title: 'Como é sua rotina de sono?',
-    subtitle: 'O sono é a base de energia, foco e disciplina',
+    title: '😴 Quantas horas você dorme?',
+    subtitle: 'Toque na sua resposta',
     questions: [
       {
         key: 'sleepHours',
-        label: 'Quantas horas você dorme por noite?',
+        label: 'Horas de sono',
         emoji: '😴',
         options: [
-          { value: 'less_6', label: 'Menos de 6 horas', emoji: '🌙' },
-          { value: '6_7', label: '6 a 7 horas', emoji: '💤' },
-          { value: '7_8', label: '7 a 8 horas', emoji: '✨' },
-          { value: 'more_8', label: 'Mais de 8 horas', emoji: '🛏️' },
-        ],
-      },
-      {
-        key: 'wakeTime',
-        label: 'Que horas você costuma acordar?',
-        emoji: '⏰',
-        options: [
-          { value: 'before_6', label: 'Antes das 6h', emoji: '🌅' },
-          { value: '6_8', label: 'Entre 6h e 8h', emoji: '☀️' },
-          { value: '8_10', label: 'Entre 8h e 10h', emoji: '🌤️' },
-          { value: 'after_10', label: 'Depois das 10h', emoji: '😅' },
+          { value: 'less_6', label: 'Menos de 6h', emoji: '🌙' },
+          { value: '6_7', label: '6 a 7h', emoji: '💤' },
+          { value: '7_8', label: '7 a 8h', emoji: '✨' },
+          { value: 'more_8', label: 'Mais de 8h', emoji: '🛏️' },
         ],
       },
     ],
-    next: '/onboarding/rotina/2',
+    next: '/onboarding/quiz/2',
   },
   '2': {
-    title: 'Como é sua vida profissional?',
-    subtitle: 'Trabalho impacta diretamente sua energia e tempo disponível',
+    title: '💼 Como é seu trabalho hoje?',
+    subtitle: 'Toque na sua resposta',
     questions: [
       {
         key: 'workSituation',
-        label: 'Qual é sua situação de trabalho hoje?',
+        label: 'Trabalho',
         emoji: '💼',
         options: [
-          { value: 'student', label: 'Estudante (trabalho + estudo)', emoji: '🎓' },
-          { value: 'employed_office', label: 'CLT / presencial', emoji: '🏢' },
-          { value: 'remote', label: 'Home office / remoto', emoji: '🏠' },
-          { value: 'entrepreneur', label: 'Empreendedor(a) / autônomo(a)', emoji: '🚀' },
-          { value: 'shift', label: 'Turnos alternados', emoji: '🌓' },
-          { value: 'not_working', label: 'Sem trabalho fixo agora', emoji: '⏸️' },
-        ],
-      },
-      {
-        key: 'workLoad',
-        label: 'Como você descreveria sua carga de trabalho?',
-        emoji: '📊',
-        options: [
-          { value: 'light', label: 'Leve — tenho tempo livre', emoji: '😌' },
-          { value: 'moderate', label: 'Moderada — equilibrada', emoji: '⚖️' },
-          { value: 'heavy', label: 'Pesada — quase sem folga', emoji: '😓' },
-          { value: 'overwhelming', label: 'Exaustiva — no limite', emoji: '🔥' },
+          { value: 'student', label: 'Estudo e trabalho', emoji: '🎓' },
+          { value: 'employed_office', label: 'Presencial / CLT', emoji: '🏢' },
+          { value: 'remote', label: 'Home office', emoji: '🏠' },
+          { value: 'entrepreneur', label: 'Autônomo / dono', emoji: '🚀' },
+          { value: 'not_working', label: 'Sem trabalho fixo', emoji: '⏸️' },
         ],
       },
     ],
-    next: '/onboarding/rotina/3',
+    next: '/onboarding/quiz/3',
   },
   '3': {
-    title: 'E os estudos?',
-    subtitle: 'Entender isso ajuda a encaixar leitura e aprendizado no plano',
+    title: '📚 Você estuda hoje?',
+    subtitle: 'Toque na sua resposta',
     questions: [
       {
         key: 'studySituation',
-        label: 'Você estuda atualmente?',
+        label: 'Estudos',
         emoji: '📚',
         options: [
-          { value: 'none', label: 'Não estudo no momento', emoji: '➖' },
+          { value: 'none', label: 'Não estudo agora', emoji: '➖' },
           { value: 'school', label: 'Ensino médio', emoji: '🏫' },
-          { value: 'college', label: 'Faculdade / pós', emoji: '🎓' },
-          { value: 'course', label: 'Curso ou certificação', emoji: '📋' },
-          { value: 'self_taught', label: 'Estudo por conta própria', emoji: '🧠' },
-        ],
-      },
-      {
-        key: 'studyFrequency',
-        label: 'Com que frequência você estuda?',
-        emoji: '📖',
-        skipWhen: { key: 'studySituation', value: 'none' },
-        options: [
-          { value: 'occasional', label: 'De vez em quando', emoji: '🎲' },
-          { value: 'few_times_week', label: '2–3 vezes por semana', emoji: '📅' },
-          { value: 'daily', label: 'Quase todos os dias', emoji: '🔥' },
+          { value: 'college', label: 'Faculdade ou pós', emoji: '🎓' },
+          { value: 'course', label: 'Curso ou prova', emoji: '📋' },
+          { value: 'self_taught', label: 'Estudo por conta', emoji: '🧠' },
         ],
       },
     ],
-    next: '/onboarding/rotina/4',
+    next: '/onboarding/quiz/4',
   },
   '4': {
-    title: 'Treino e movimento',
-    subtitle: 'Sem julgamento — queremos seu ponto de partida real',
+    title: '🏋️ Com que frequência você treina?',
+    subtitle: 'Toque na sua resposta',
     questions: [
       {
         key: 'exerciseFrequency',
-        label: 'Com que frequência você se exercita?',
-        emoji: '🏃',
+        label: 'Treino',
+        emoji: '🏋️',
         options: [
           { value: 'never', label: 'Quase nunca', emoji: '🛋️' },
-          { value: '1_2_week', label: '1–2 vezes por semana', emoji: '🚶' },
-          { value: '3_4_week', label: '3–4 vezes por semana', emoji: '💪' },
-          { value: 'daily', label: 'Quase todos os dias', emoji: '🔥' },
-        ],
-      },
-      {
-        key: 'trainingGoal',
-        label: 'Qual sua meta principal com treino?',
-        emoji: '🎯',
-        options: [
-          { value: 'none', label: 'Não tenho meta específica', emoji: '➖' },
-          { value: 'lose_weight', label: 'Emagrecer / perder gordura', emoji: '⚖️' },
-          { value: 'gain_muscle', label: 'Ganhar massa muscular', emoji: '🏋️' },
-          { value: 'endurance', label: 'Condicionamento / resistência', emoji: '🏃' },
-          { value: 'discipline', label: 'Criar disciplina no treino', emoji: '🧱' },
-          { value: 'health', label: 'Saúde e bem-estar geral', emoji: '❤️' },
-        ],
-      },
-      {
-        key: 'trainingPlace',
-        label: 'Onde você prefere ou costuma treinar?',
-        emoji: '📍',
-        options: [
-          { value: 'none', label: 'Ainda não treino', emoji: '➖' },
-          { value: 'home', label: 'Em casa', emoji: '🏠' },
-          { value: 'gym', label: 'Academia', emoji: '🏋️' },
-          { value: 'outdoor', label: 'Ar livre / rua', emoji: '🌳' },
-          { value: 'mixed', label: 'Misto — vario conforme o dia', emoji: '🔄' },
+          { value: '1_2_week', label: '1–2x na semana', emoji: '🚶' },
+          { value: '3_4_week', label: '3–4x na semana', emoji: '💪' },
+          { value: 'daily', label: 'Quase todo dia', emoji: '🔥' },
         ],
       },
     ],
-    next: '/onboarding/rotina/5',
+    next: '/onboarding/quiz/5',
   },
   '5': {
-    title: 'Foco e distrações',
-    subtitle: 'Celular e falta de estrutura sabotam mais do que a gente imagina',
-    questions: [
-      {
-        key: 'screenTime',
-        label: 'Quanto tempo passa no celular por dia?',
-        emoji: '📱',
-        options: [
-          { value: 'low', label: 'Menos de 2 horas', emoji: '✅' },
-          { value: 'moderate', label: '2 a 4 horas', emoji: '📲' },
-          { value: 'high', label: '4 a 6 horas', emoji: '😬' },
-          { value: 'very_high', label: 'Mais de 6 horas', emoji: '📵' },
-        ],
-      },
-      {
-        key: 'routineConsistency',
-        label: 'Como você descreveria sua rotina?',
-        emoji: '🔄',
-        options: [
-          { value: 'chaotic', label: 'Caótica — cada dia é diferente', emoji: '🌪️' },
-          { value: 'somewhat', label: 'Mais ou menos — tento, mas falho', emoji: '🎲' },
-          { value: 'mostly', label: 'Razoável — tenho alguns hábitos fixos', emoji: '📋' },
-          { value: 'structured', label: 'Estruturada — sigo um plano', emoji: '🎯' },
-        ],
-      },
-    ],
-    next: '/onboarding/rotina/6',
-  },
-  '6': {
-    title: 'Alimentação e energia',
-    subtitle: 'Última pergunta — em seguida analisamos tudo para você',
+    title: '🥗 Como você come no dia a dia?',
+    subtitle: 'Toque na sua resposta',
     questions: [
       {
         key: 'mealHabits',
-        label: 'Como são seus hábitos alimentares?',
+        label: 'Alimentação',
         emoji: '🥗',
         options: [
-          { value: 'skip_meals', label: 'Pulo refeições com frequência', emoji: '⏭️' },
-          { value: 'irregular', label: 'Irregulares — como o que aparece', emoji: '🍔' },
-          { value: 'somewhat', label: 'Razoáveis — tento comer bem', emoji: '🥙' },
-          { value: 'regular', label: 'Organizadas — planejo minhas refeições', emoji: '🍽️' },
+          { value: 'skip_meals', label: 'Pulo refeições', emoji: '⏭️' },
+          { value: 'irregular', label: 'Como o que aparece', emoji: '🍔' },
+          { value: 'somewhat', label: 'Tento comer bem', emoji: '🥙' },
+          { value: 'regular', label: 'Refeições organizadas', emoji: '🍽️' },
         ],
       },
     ],
-    next: '/onboarding/ciencia',
+    next: '/onboarding/quiz/6',
+  },
+  '6': {
+    title: '🎮 No lazer, quanto tempo no celular?',
+    subtitle: 'Última pergunta',
+    questions: [
+      {
+        key: 'screenTime',
+        label: 'Lazer / celular',
+        emoji: '🎮',
+        options: [
+          { value: 'low', label: 'Menos de 2h', emoji: '✅' },
+          { value: 'moderate', label: '2 a 4h', emoji: '📲' },
+          { value: 'high', label: '4 a 6h', emoji: '😬' },
+          { value: 'very_high', label: 'Mais de 6h', emoji: '📵' },
+        ],
+      },
+    ],
+    next: '/onboarding/resultado',
   },
 }
 
+/** Áreas de foco — multi-seleção antes do quiz */
 export const GOAL_OPTIONS: { id: Goal; emoji: string; label: string }[] = [
-  { id: 'discipline', emoji: '🧱', label: 'Construir disciplina de verdade' },
-  { id: 'distractions', emoji: '📵', label: 'Sair das distrações' },
-  { id: 'burnout', emoji: '🧠', label: 'Recuperar depois de burnout' },
-  { id: 'routine', emoji: '🔄', label: 'Criar uma rotina que funciona' },
-  { id: 'time', emoji: '⏱️', label: 'Recuperar seu tempo' },
-  { id: 'consistency', emoji: '🔥', label: 'Manter consistência' },
+  { id: 'routine', emoji: '💼', label: 'Trabalho' },
+  { id: 'discipline', emoji: '📚', label: 'Estudos' },
+  { id: 'consistency', emoji: '🏋️', label: 'Treino' },
+  { id: 'time', emoji: '🥗', label: 'Alimentação' },
+  { id: 'distractions', emoji: '🎮', label: 'Lazer e celular' },
 ]
 
 export const CHALLENGES = {
@@ -452,7 +489,7 @@ export const CHALLENGES = {
     badge: 'INICIANTE',
     badgeColor: 'bg-accent-green text-black',
     tagline: 'O primeiro passo — leve, possível e consistente',
-    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&h=800&fit=crop',
+    image: '/niveis/iniciante.jpg',
     tags: [
       '🥗 Dieta básica',
       '🏋️ Treino 2–3x/semana',
@@ -512,7 +549,7 @@ export const CHALLENGES = {
     badge: 'INTERMEDIÁRIO',
     badgeColor: 'bg-accent-yellow text-black',
     tagline: 'Mais exigência — corpo, mente e foco alinhados',
-    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=800&fit=crop',
+    image: '/niveis/intermediario.jpg',
     tags: [
       '🍽️ Dieta moderada — sem industrializado',
       '🏋️ Treino 3–4x/semana',
@@ -584,7 +621,7 @@ export const CHALLENGES = {
     badge: 'IMPLACÁVEL',
     badgeColor: 'bg-accent-orange',
     tagline: 'Sem atalhos — transformação total em 90 dias',
-    image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=800&fit=crop',
+    image: '/niveis/implacavel.jpg',
     tags: [
       '📋 Dieta regrada + 1 ref. livre/semana',
       '💊 Suplementação (creatina)',

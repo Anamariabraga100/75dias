@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, CreditCard, QrCode, ShieldCheck } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
 import { getCheckoutPrice } from '../../lib/pricing'
+import { recordPaymentToCloud } from '../../lib/userSync'
 
 type PaymentMethod = 'pix' | 'card'
 
@@ -19,6 +20,7 @@ export function PaymentPage() {
 
   const handlePay = () => {
     setLoading(true)
+    void recordPaymentToCloud(selectedPlan, method, usePromoOffer)
     setTimeout(() => {
       setPaymentComplete()
       navigate('/onboarding/pagamento/sucesso')

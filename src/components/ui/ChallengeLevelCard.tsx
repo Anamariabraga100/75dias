@@ -7,6 +7,7 @@ export const LEVEL_META: Record<
     label: string
     level: number
     intensity: string
+    imagePosition: string
     ctaCard: string
     ctaPreview: string
     ctaConfirm: string
@@ -16,6 +17,7 @@ export const LEVEL_META: Record<
     label: 'Iniciante',
     level: 1,
     intensity: 'Leve',
+    imagePosition: 'object-[center_15%]',
     ctaCard: 'Dar o primeiro passo',
     ctaPreview: 'Começar agora',
     ctaConfirm: 'Iniciar minha jornada',
@@ -24,6 +26,7 @@ export const LEVEL_META: Record<
     label: 'Intermediário',
     level: 2,
     intensity: 'Moderado',
+    imagePosition: 'object-[center_20%]',
     ctaCard: 'Quero evoluir',
     ctaPreview: 'Aceitar desafio',
     ctaConfirm: 'Aceitar e começar',
@@ -32,6 +35,7 @@ export const LEVEL_META: Record<
     label: 'Implacável',
     level: 3,
     intensity: 'Máximo',
+    imagePosition: 'object-[center_25%]',
     ctaCard: 'Entrar no modo Implacável 🔥',
     ctaPreview: 'Aceito o desafio',
     ctaConfirm: 'Provar meu compromisso',
@@ -51,11 +55,11 @@ interface ChallengeLevelCardProps {
 
 function IntensityDots({ level }: { level: number }) {
   return (
-    <div className="flex gap-0.5">
+    <div className="flex gap-1.5 mt-3">
       {[1, 2, 3].map((n) => (
         <div
           key={n}
-          className={`h-1 w-3 rounded-full ${n <= level ? 'bg-white' : 'bg-white/25'}`}
+          className={`h-1.5 w-5 rounded-full ${n <= level ? 'bg-white' : 'bg-white/30'}`}
         />
       ))}
     </div>
@@ -75,47 +79,54 @@ export function ChallengeLevelCard({
 
   return (
     <div
-      className={`relative rounded-2xl overflow-hidden border transition-all ${
+      className={`relative rounded-3xl overflow-hidden border transition-all ${
         isActive ? 'border-accent-blue/50 ring-1 ring-accent-blue/30' : 'border-neutral-800'
       } ${isDisabled ? 'opacity-45' : ''}`}
     >
-      {isRecommended && !isActive && (
-        <span className="absolute top-2 right-2 z-10 bg-accent-blue text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-          Recomendado
-        </span>
-      )}
-      {isActive && (
-        <span className="absolute top-2 right-2 z-10 bg-accent-green/90 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
-          Ativo
-        </span>
-      )}
+      <div className="relative w-full aspect-[3/4] max-h-[min(68vw,280px)]">
+        <img
+          src={c.image}
+          alt={meta.label}
+          className={`absolute inset-0 w-full h-full object-cover ${meta.imagePosition}`}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
 
-      <div className="relative h-[72px]">
-        <img src={c.image} alt={meta.label} className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
-        <div className="absolute inset-0 px-3 py-2.5 flex flex-col justify-between">
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${c.badgeColor}`}>
-              Nível {meta.level}
-            </span>
-            <span className="text-neutral-400 text-[10px]">{meta.intensity}</span>
-          </div>
-          <div>
-            <h3 className="text-base font-bold leading-tight">{meta.label}</h3>
-            <IntensityDots level={meta.level} />
-          </div>
+        {isRecommended && !isActive && (
+          <span className="absolute top-3 right-3 z-10 bg-accent-blue text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+            Recomendado
+          </span>
+        )}
+        {isActive && (
+          <span className="absolute top-3 right-3 z-10 bg-accent-green text-black text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+            Ativo
+          </span>
+        )}
+
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shadow-md ${c.badgeColor}`}>
+            Nível {meta.level}
+          </span>
+          <span className="text-white/80 text-xs font-medium drop-shadow-md">{meta.intensity}</span>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-5 pt-20 bg-gradient-to-t from-black via-black/70 to-transparent">
+          <h3 className="text-2xl font-bold leading-tight drop-shadow-lg">{meta.label}</h3>
+          <p className="text-neutral-300 text-sm mt-2 line-clamp-2 drop-shadow-md leading-relaxed">
+            {c.tagline}
+          </p>
+          <IntensityDots level={meta.level} />
         </div>
       </div>
 
-      <div className="px-3 pb-3 pt-2">
+      <div className="px-5 py-5 bg-surface border-t border-neutral-800/80">
         {isActive ? (
-          <Button variant="danger" className="!py-2.5 !text-sm" onClick={onQuit}>
+          <Button variant="danger" className="!py-3.5" onClick={onQuit}>
             Desistir do desafio
           </Button>
         ) : (
           <Button
             variant="primary"
-            className={`!py-2.5 !text-sm ${
+            className={`!py-3.5 ${
               isImplacavel ? '!bg-accent-orange !text-black hover:!bg-orange-400' : ''
             }`}
             disabled={isDisabled}

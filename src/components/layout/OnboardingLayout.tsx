@@ -4,6 +4,7 @@ interface OnboardingLayoutProps {
   children: React.ReactNode
   showBack?: boolean
   showLogo?: boolean
+  onBack?: () => void
   footer?: React.ReactNode
   className?: string
   gradient?: 'none' | 'red' | 'purple' | 'green' | 'blue'
@@ -21,6 +22,7 @@ export function OnboardingLayout({
   children,
   showBack = true,
   showLogo = true,
+  onBack,
   footer,
   className = '',
   gradient = 'none',
@@ -29,7 +31,7 @@ export function OnboardingLayout({
     <div className={`min-h-dvh flex flex-col ${gradients[gradient]}`}>
       <div className="max-w-md mx-auto w-full flex flex-col min-h-dvh px-5">
         <header className="flex items-center justify-between pt-4 pb-2 shrink-0">
-          {showBack ? <BackButton /> : <div className="w-10" />}
+          {showBack ? <BackButton onClick={onBack} /> : <div className="w-10" />}
           {showLogo && <Logo />}
           <div className="w-10" />
         </header>

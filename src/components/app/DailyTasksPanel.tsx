@@ -8,16 +8,15 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart2,
-  Images,
   ArrowRight,
+  Camera,
 } from 'lucide-react'
 import { CHALLENGES, useAppStore, type ChallengeId } from '../../store/useAppStore'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
 import { isPhotoDay } from '../../lib/photoSchedule'
 import { getDisplayDay, normalizeProgramDay, TOTAL_PROGRAM_DAYS } from '../../lib/demoProgress'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
-
-type TaskState = Record<string, boolean>
+import { PhotoCheckInSheet } from './PhotoCheckInSheet'
 
 type Task = (typeof CHALLENGES)[ChallengeId]['tasks'][number]
 
@@ -92,44 +91,44 @@ function TaskInfoModal({ task, onClose }: { task: Task; onClose: () => void }) {
 
 export function DailyTasksPanel() {
   const navigate = useNavigate()
-  const { challengeId, currentDay, challengeAccepted } = useAppStore()
+  const {
+    challengeId,
+    currentDay,
+    challengeAccepted,
+    mirrorPhotos,
+    registerMirrorPhoto,
+    taskChecksByDay,
+    toggleTaskCheck,
+  } = useAppStore()
   const [infoTask, setInfoTask] = useState<Task | null>(null)
   const [showCompletedDetails, setShowCompletedDetails] = useState(false)
+  const [showPhotoCheckIn, setShowPhotoCheckIn] = useState(false)
 
   const programDay = normalizeProgramDay(currentDay)
   const challenge = challengeId ? CHALLENGES[challengeId] : null
   const meta = challengeId ? LEVEL_META[challengeId] : null
-
-  const [tasks, setTasks] = useState<TaskState>({})
-
-  useEffect(() => {
-    if (!challengeId) return
-    const c = CHALLENGES[challengeId]
-    const init: TaskState = {}
-    c.tasks.forEach((t) => {
-      init[t.id] = false
-    })
-    setTasks(init)
-    setShowCompletedDetails(false)
-  }, [challengeId])
+  const tasks = taskChecksByDay[programDay] ?? {}
 
   const toggleCheck = (id: string) => {
-    setTasks((prev) => ({ ...prev, [id]: !prev[id] }))
+    toggleTaskCheck(programDay, id)
   }
 
   const completedCount =
     challenge?.tasks.filter((t) => t.type === 'check' && tasks[t.id]).length ?? 0
   const checkTotal = challenge?.tasks.filter((t) => t.type === 'check').length ?? 0
-  const allDone = checkTotal > 0 && completedCount === checkTotal
+  const displayDay = getDisplayDay(challengeAccepted, currentDay)
+  const daysLeft = Math.max(0, TOTAL_PROGRAM_DAYS - displayDay)
+  const isImplacavel = challengeId === 'implacavel'
+  const photoRequired = isImplacavel && isPhotoDay(programDay)
+  const photoDone = !photoRequired || Boolean(mirrorPhotos[programDay])
+  const checksDone = checkTotal > 0 && completedCount === checkTotal
+  const allDone = checksDone && photoDone
   const motivation =
     MOTIVATION_MESSAGES[(programDay - 1) % MOTIVATION_MESSAGES.length]
-  const displayDay = getDisplayDay(challengeAccepted, currentDay)
   const progressPct = Math.min(
     100,
     Math.round((displayDay / TOTAL_PROGRAM_DAYS) * 100)
   )
-  const daysLeft = Math.max(0, TOTAL_PROGRAM_DAYS - displayDay)
-  const isImplacavel = challengeId === 'implacavel'
 
   useEffect(() => {
     if (!allDone) setShowCompletedDetails(false)
@@ -173,28 +172,17 @@ export function DailyTasksPanel() {
     <div className="flex flex-col gap-2 w-full">
       <button
         type="button"
-        onClick={() => navigate('/app/progresso')}
-        className="w-full flex items-center justify-between gap-2 rounded-xl bg-neutral-900/80 border border-neutral-800 px-3 py-2.5 text-left hover:bg-neutral-900 transition-colors"
+        onClick={() =>
+          navigate(isImplacavel ? '/app/progresso#evolucao' : '/app/progresso')
+        }
+        className="w-full flex items-center justify-between gap-2 rounded-xl bg-surface border border-app-border px-3 py-2.5 text-left hover:bg-surface-light transition-colors shadow-sm"
       >
-        <span className="flex items-center gap-2 text-sm font-semibold text-white">
+        <span className="flex items-center gap-2 text-sm font-semibold text-app-fg">
           <BarChart2 size={16} className="text-accent-blue shrink-0" />
-          Ver meu progresso
+          {isImplacavel ? 'Ver evolução no espelho' : 'Ver meu progresso'}
         </span>
-        <ArrowRight size={14} className="text-neutral-500 shrink-0" />
+        <ArrowRight size={14} className="text-app-muted shrink-0" />
       </button>
-      {isImplacavel && (
-        <button
-          type="button"
-          onClick={() => navigate('/app/galeria')}
-          className="w-full flex items-center justify-between gap-2 rounded-xl bg-neutral-900/80 border border-neutral-800 px-3 py-2.5 text-left hover:bg-neutral-900 transition-colors"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Images size={16} className="text-accent-orange shrink-0" />
-            Ver galeria de evolução
-          </span>
-          <ArrowRight size={14} className="text-neutral-500 shrink-0" />
-        </button>
-      )}
     </div>
   )
 
@@ -202,7 +190,10 @@ export function DailyTasksPanel() {
     <div className="space-y-2.5">
       {challenge.tasks.map((task) => {
         const colorClass = TASK_COLORS[task.id] ?? 'bg-neutral-600'
-        const done = task.type === 'check' && tasks[task.id]
+        const done =
+          task.type === 'check'
+            ? tasks[task.id]
+            : task.id === 'photo' && Boolean(mirrorPhotos[programDay])
         const photoDue = task.id === 'photo' && isPhotoDay(programDay)
 
         return (
@@ -260,10 +251,26 @@ export function DailyTasksPanel() {
                   {done && <Check size={16} className="text-white" />}
                 </button>
               )}
-              {task.type === 'action' && (
+              {task.type === 'action' && task.id === 'photo' && (
                 <button
                   type="button"
-                  className="w-9 h-9 rounded-xl bg-neutral-700 flex items-center justify-center shrink-0 mt-0.5"
+                  onClick={() => photoDue && !done && setShowPhotoCheckIn(true)}
+                  disabled={!photoDue || done}
+                  className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
+                    done
+                      ? 'bg-green-500 border-green-500'
+                      : photoDue
+                        ? 'border-teal-500 bg-teal-500/15 text-teal-500'
+                        : 'border-app-border bg-app-track text-app-subtle opacity-50'
+                  }`}
+                >
+                  {done ? <Check size={16} className="text-white" /> : <Camera size={16} />}
+                </button>
+              )}
+              {task.type === 'action' && task.id !== 'photo' && (
+                <button
+                  type="button"
+                  className="w-9 h-9 rounded-xl bg-app-track flex items-center justify-center shrink-0 mt-0.5"
                 >
                   <Plus size={16} />
                 </button>
@@ -342,6 +349,16 @@ export function DailyTasksPanel() {
       )}
 
       {infoTask && <TaskInfoModal task={infoTask} onClose={() => setInfoTask(null)} />}
+      {showPhotoCheckIn && (
+        <PhotoCheckInSheet
+          day={programDay}
+          onRegister={(photoUrl) => {
+            registerMirrorPhoto(programDay, photoUrl)
+            setShowPhotoCheckIn(false)
+          }}
+          onClose={() => setShowPhotoCheckIn(false)}
+        />
+      )}
     </div>
   )
 }

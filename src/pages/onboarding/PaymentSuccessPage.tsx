@@ -6,10 +6,17 @@ import { getPlanDisplayLabel } from '../../lib/pricing'
 
 export function PaymentSuccessPage() {
   const navigate = useNavigate()
-  const { name, selectedPlan, usePromoOffer } = useAppStore()
+  const { name, selectedPlan, usePromoOffer, setStartDate, completeOnboarding } =
+    useAppStore()
   const displayName = name || 'você'
 
   const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
+
+  const startNow = () => {
+    setStartDate('today')
+    completeOnboarding()
+    navigate('/app')
+  }
 
   return (
     <div className="min-h-dvh bg-black flex flex-col">
@@ -27,10 +34,10 @@ export function PaymentSuccessPage() {
             />
           </div>
 
-          <h1 className="text-3xl font-bold mb-2">Pagamento confirmado!</h1>
+          <h1 className="text-3xl font-bold mb-2">Você está dentro!</h1>
           <p className="text-neutral-400 mb-6 max-w-xs">
             {displayName.charAt(0).toUpperCase() + displayName.slice(1)}, seu {planLabel}{' '}
-            está ativo. Agora é hora de escolher seu desafio.
+            está ativo. Escolha seu nível e comece o dia 1 agora.
           </p>
 
           <div className="w-full bg-surface rounded-2xl p-5 text-left mb-6">
@@ -55,9 +62,7 @@ export function PaymentSuccessPage() {
         </div>
 
         <div className="pb-8">
-          <Button onClick={() => navigate('/onboarding/inicio')}>
-            Começar Reset90
-          </Button>
+          <Button onClick={startNow}>Começar agora</Button>
         </div>
       </div>
     </div>

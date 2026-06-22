@@ -4,8 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
 import { PRICING } from '../../lib/pricing'
 
-const PAYWALL_HERO =
-  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=900&h=1200&fit=crop&q=85'
+const PAYWALL_HERO = '/niveis/pagamento.jpg'
 
 export function PaywallPage() {
   const navigate = useNavigate()
@@ -32,15 +31,15 @@ export function PaywallPage() {
           <img
             src={PAYWALL_HERO}
             alt="Treino intenso — disciplina e transformação"
-            className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
+            className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
           <div className="absolute bottom-0 left-0 right-0 p-5">
             <p className="text-white font-bold text-lg leading-snug mb-1">
-              90 dias para reconstruir sua disciplina
+              Seu Reset90 começa agora
             </p>
             <p className="text-white/70 text-sm">
-              Junte-se a milhares de brasileiros no Reset90
+              Plano personalizado · 90 dias de transformação
             </p>
           </div>
         </div>
@@ -49,8 +48,8 @@ export function PaywallPage() {
           <span className="inline-block bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full w-fit mb-3">
             Acesso completo
           </span>
-          <h1 className="text-3xl font-bold mb-1">Escolha seu plano</h1>
-          <p className="text-neutral-400 mb-6">Preço justo para o mercado brasileiro</p>
+          <h1 className="text-3xl font-bold mb-1">Desbloqueie seu plano</h1>
+          <p className="text-neutral-400 mb-6">Cancele quando quiser · acesso imediato</p>
 
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
@@ -83,7 +82,7 @@ export function PaywallPage() {
             </button>
           </div>
 
-          <Button onClick={goToPayment}>Continuar</Button>
+          <Button onClick={goToPayment}>Começar meu Reset90</Button>
 
           <p className="text-neutral-500 text-xs text-center mt-3">
             {selectedPlan === 'quarterly'

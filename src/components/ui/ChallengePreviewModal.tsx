@@ -23,13 +23,13 @@ export function ChallengePreviewModal({
       <BottomSheetPanel
         className="overflow-hidden flex flex-col max-h-[min(85dvh,calc(100dvh-72px-4rem))]"
       >
-        <div className="relative h-28 shrink-0">
+        <div className="relative aspect-[16/10] max-h-[200px] shrink-0">
           <img
             src={challenge.image}
             alt={meta.label}
-            className="absolute inset-0 w-full h-full object-cover"
+            className={`absolute inset-0 w-full h-full object-cover ${meta.imagePosition}`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-surface via-black/30 to-transparent" />
           <button
             type="button"
             onClick={onClose}
@@ -84,7 +84,7 @@ export function ChallengePreviewModal({
 
           {challengeId === 'implacavel' && (
             <p className="text-neutral-600 text-[11px] mt-3">
-              Galeria de evolução exclusiva deste nível — registros nos dias 1, 4, 7… (a cada 3 dias).
+              Evolução no espelho no Progresso — check-in nos dias 1, 4, 7… com comparação automática.
             </p>
           )}
         </div>

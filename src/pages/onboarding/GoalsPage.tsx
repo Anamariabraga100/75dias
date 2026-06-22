@@ -10,20 +10,21 @@ export function GoalsPage() {
 
   return (
     <OnboardingLayout
+      showLogo={false}
       footer={
         <Button
           disabled={goals.length === 0}
-          onClick={() => navigate('/onboarding/rotina/1')}
+          onClick={() => navigate('/onboarding/quiz/1')}
         >
           Continuar
         </Button>
       }
     >
       <PageTitle
-        title="No que podemos te ajudar?"
-        subtitle="Selecione uma ou mais opções"
+        title="O que você quer melhorar?"
+        subtitle="Pode escolher mais de uma área"
       />
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {GOAL_OPTIONS.map((g) => (
           <MultiSelectCard
             key={g.id}

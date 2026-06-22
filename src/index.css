@@ -44,6 +44,139 @@ body {
   background-clip: text;
 }
 
+.landing-logo {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    1px 0 0 rgba(255, 255, 255, 0.08),
+    -1px 0 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Landing hero — premium athletic typography */
+.landing-hero-brand {
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 8.5vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.landing-hero-slogan {
+  margin-top: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.landing-hero-lower {
+  text-align: center;
+}
+
+.landing-hero-headline {
+  font-family: var(--font-sans);
+  font-size: clamp(1.875rem, 7.5vw, 2.375rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.landing-hero-body {
+  margin-top: 0.75rem;
+  max-width: 18rem;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
+}
+
+.landing-btn-google,
+.landing-btn-email {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1.125rem 1.5rem;
+  border-radius: 9999px;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.landing-btn-google:active,
+.landing-btn-email:active,
+.landing-btn-account:active {
+  transform: scale(0.98);
+}
+
+.landing-btn-google {
+  background: #fff;
+  color: #000;
+  border: none;
+  padding: 1.1875rem 1.5rem;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.landing-btn-google:hover {
+  background: #fafafa;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.32);
+}
+
+.landing-btn-email {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+}
+
+.landing-btn-email:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.landing-btn-account {
+  display: block;
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 0.625rem;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  cursor: pointer;
+}
+
+.landing-btn-account:hover {
+  color: #fff;
+}
+
 .gradient-text {
   background: linear-gradient(180deg, #ffffff 40%, #737373 100%);
   -webkit-background-clip: text;
@@ -117,6 +250,12 @@ body {
 
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app-header {
+  background: linear-gradient(180deg, #141414 0%, #0d0d0d 100%);
+  border-bottom: 1px solid #2a2a2a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
 }
 
 .modal-sheet-overlay {

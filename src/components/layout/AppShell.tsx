@@ -1,11 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, TrendingUp, Image } from 'lucide-react'
+import { Home, TrendingUp } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 
 const NAV_ITEMS = [
   { to: '/app', icon: Home, label: 'Início', end: true },
   { to: '/app/progresso', icon: TrendingUp, label: 'Progresso', requiresChallenge: true },
-  { to: '/app/galeria', icon: Image, label: 'Galeria', requiresChallenge: true },
 ]
 
 export function AppBottomNav() {
@@ -20,7 +19,7 @@ export function AppBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-md border-t border-neutral-800 safe-area-pb">
-      <div className="max-w-md mx-auto flex items-center justify-around px-4 py-2">
+      <div className="max-w-md mx-auto flex items-center justify-around px-4 py-3">
         {NAV_ITEMS.map(({ to, icon: Icon, label, end, requiresChallenge }) => {
           const disabled = requiresChallenge && !onboardingComplete
           const active = isActive(to, end)
@@ -51,7 +50,9 @@ export function AppBottomNav() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-black">
-      <div className="max-w-md mx-auto min-h-dvh flex flex-col pb-[calc(72px+env(safe-area-inset-bottom,0px))]">{children}</div>
+      <div className="max-w-md mx-auto min-h-dvh flex flex-col pb-[calc(80px+env(safe-area-inset-bottom,0px))]">
+        {children}
+      </div>
       <AppBottomNav />
     </div>
   )

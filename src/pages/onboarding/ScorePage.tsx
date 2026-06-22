@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { OnboardingLayout, QuoteBox } from '../../components/layout/OnboardingLayout'
 import { Button } from '../../components/ui/Button'
+import { LEVEL_META } from '../../components/ui/ChallengeLevelCard'
 import { useAppStore } from '../../store/useAppStore'
 
 function growthFactor(current: number, projected: number): string {
@@ -13,8 +14,11 @@ function growthFactor(current: number, projected: number): string {
 
 export function ScorePage() {
   const navigate = useNavigate()
-  const { disciplineScore, projectedScore, profileInsights } = useAppStore()
+  const { disciplineScore, projectedScore, profileInsights, recommendedChallenge } =
+    useAppStore()
   const growth = growthFactor(disciplineScore, projectedScore)
+  const levelLabel =
+    LEVEL_META[recommendedChallenge ?? 'intermediario'].label
 
   const quote =
     profileInsights?.personalizedQuote ??
@@ -23,14 +27,22 @@ export function ScorePage() {
   return (
     <OnboardingLayout
       gradient="blue"
-      footer={<Button onClick={() => navigate('/onboarding/criando')}>Continuar</Button>}
+      footer={
+        <Button onClick={() => navigate('/onboarding/criando')}>
+          Montar meu plano de 90 dias
+        </Button>
+      }
     >
-      <p className="text-neutral-500 text-sm mb-2">Análise concluída</p>
+      <p className="text-neutral-500 text-sm mb-2">Diagnóstico pronto</p>
       <h1 className="text-3xl font-bold mb-1">
-        Sua nota de disciplina: {disciplineScore}%
+        Sua disciplina hoje: {disciplineScore}%
       </h1>
-      <p className="text-accent-blue font-semibold mb-4">
-        {growth} de potencial de crescimento
+      <p className="text-accent-blue font-semibold mb-1">
+        Potencial de até {growth} com o Reset90
+      </p>
+      <p className="text-neutral-500 text-sm mb-4">
+        Nível recomendado para você:{' '}
+        <span className="text-white font-semibold">{levelLabel}</span>
       </p>
 
       {profileInsights?.scoreSummary && (

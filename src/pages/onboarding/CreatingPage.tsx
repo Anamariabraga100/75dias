@@ -117,7 +117,7 @@ export function CreatingPage() {
       setPercent((p) => {
         if (p >= 100) {
           clearInterval(interval)
-          setTimeout(() => navigate('/onboarding/dia/1'), 800)
+          setTimeout(() => navigate('/onboarding/contrato'), 800)
           return 100
         }
         return p + PROGRESS_STEP
@@ -134,7 +134,7 @@ export function CreatingPage() {
     <OnboardingLayout showLogo>
       <div className="flex flex-col items-center flex-1 min-h-0">
         <ProgressRing percent={percent} />
-        <h2 className="text-xl font-bold mt-6 mb-4">Criando seu plano</h2>
+        <h2 className="text-xl font-bold mt-6 mb-4">Montando seu plano</h2>
 
         <div className="w-full mb-4">
           {STEPS.map((step, i) => (
