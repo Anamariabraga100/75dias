@@ -40,9 +40,9 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const userId = await getAuthUserId()
   if (!client || !userId) return false
 
-  const state = useAppStore.getState()
+  const stateBefore = useAppStore.getState()
 
-  if (state.authUserId && state.authUserId !== userId) {
+  if (stateBefore.authUserId && stateBefore.authUserId !== userId) {
     useAppStore.getState().resetProgressForNewAccount(userId)
   }
 
@@ -54,7 +54,19 @@ export async function hydrateFromCloud(): Promise<boolean> {
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (error || !profile) {
+  if (error) {
+    useAppStore.setState({ authUserId: userId })
+    const state = useAppStore.getState()
+    return Boolean(state.onboardingComplete && state.paymentComplete)
+  }
+
+  if (!profile) {
+    useAppStore.setState({ authUserId: userId })
+    const state = useAppStore.getState()
+    if (state.onboardingComplete || state.paymentComplete) {
+      await syncProfileToCloud()
+      return Boolean(state.onboardingComplete && state.paymentComplete)
+    }
     useAppStore.getState().resetProgressForNewAccount(userId)
     return false
   }
@@ -64,20 +76,21 @@ export async function hydrateFromCloud(): Promise<boolean> {
 
   useAppStore.setState({
     authUserId: userId,
-    name: row.name?.trim() || state.name,
-    email: row.email || state.email,
-    avatarUrl: row.avatar_url ?? state.avatarUrl,
+    name: row.name?.trim() || stateBefore.name,
+    email: row.email || stateBefore.email,
+    avatarUrl: row.avatar_url ?? stateBefore.avatarUrl,
     selectedPlan: row.selected_plan === 'monthly' ? 'monthly' : 'quarterly',
     usePromoOffer: row.use_promo_offer,
-    paymentComplete: row.payment_complete,
-    onboardingComplete: row.onboarding_complete,
+    paymentComplete: row.payment_complete || stateBefore.paymentComplete,
+    onboardingComplete: row.onboarding_complete || stateBefore.onboardingComplete,
     challengeId,
     challengeAccepted: row.challenge_accepted,
     currentDay: Math.min(90, Math.max(1, row.current_day ?? 1)),
-    disciplineScore: row.discipline_score ?? state.disciplineScore,
+    disciplineScore: row.discipline_score ?? stateBefore.disciplineScore,
   })
 
-  return Boolean(row.onboarding_complete && row.payment_complete)
+  const final = useAppStore.getState()
+  return Boolean(final.onboardingComplete && final.paymentComplete)
 }
 
 export async function syncProfileToCloud() {
@@ -160,10 +173,25 @@ export async function logMirrorPhotoToCloud(day: number) {
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null
+let syncInFlight: Promise<void> | null = null
+
+export async function flushProfileSync() {
+  if (syncTimer) {
+    clearTimeout(syncTimer)
+    syncTimer = null
+  }
+  if (!syncInFlight) {
+    syncInFlight = syncProfileToCloud().finally(() => {
+      syncInFlight = null
+    })
+  }
+  await syncInFlight
+}
 
 export function scheduleProfileSync() {
   if (syncTimer) clearTimeout(syncTimer)
   syncTimer = setTimeout(() => {
+    syncTimer = null
     void syncProfileToCloud()
   }, 800)
 }

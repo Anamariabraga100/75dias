@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { MoneyBackGuarantee } from '../../components/ui/MoneyBackGuarantee'
 import { useAppStore } from '../../store/useAppStore'
 import { PRICING } from '../../lib/pricing'
 
@@ -18,10 +19,12 @@ export function PaywallPage() {
   return (
     <div className="min-h-dvh bg-black flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col min-h-dvh">
-        <header className="flex justify-between items-center pt-4 px-5 shrink-0 z-10">
+        <header className="flex justify-end items-center pt-4 px-5 shrink-0 z-10">
           <button
+            type="button"
             onClick={() => navigate('/onboarding/oferta')}
-            className="text-neutral-500"
+            className="text-neutral-500 p-1"
+            aria-label="Fechar"
           >
             <X size={24} />
           </button>
@@ -46,13 +49,14 @@ export function PaywallPage() {
 
         <div className="px-5 pb-8 pt-2 shrink-0 bg-gradient-to-t from-black via-black to-transparent">
           <span className="inline-block bg-white/10 text-white text-xs font-medium px-3 py-1 rounded-full w-fit mb-3">
-            Acesso completo
+            Acesso completo · 90 dias
           </span>
           <h1 className="text-3xl font-bold mb-1">Desbloqueie seu plano</h1>
-          <p className="text-neutral-400 mb-6">Cancele quando quiser · acesso imediato</p>
+          <p className="text-neutral-400 text-sm mb-5">Cancele quando quiser · acesso imediato</p>
 
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-5">
             <button
+              type="button"
               onClick={() => setSelectedPlan('monthly')}
               className={`rounded-2xl p-4 text-left border-2 transition-all ${
                 selectedPlan === 'monthly'
@@ -66,6 +70,7 @@ export function PaywallPage() {
             </button>
 
             <button
+              type="button"
               onClick={() => setSelectedPlan('quarterly')}
               className={`rounded-2xl p-4 text-left border-2 transition-all relative ${
                 selectedPlan === 'quarterly'
@@ -82,19 +87,27 @@ export function PaywallPage() {
             </button>
           </div>
 
-          <Button onClick={goToPayment}>Começar meu Reset90</Button>
+          <ul className="space-y-2 mb-5 text-sm text-neutral-300">
+            <li className="flex items-center gap-2">
+              <span className="text-accent-green">✓</span> Todos os níveis do desafio
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-accent-green">✓</span> Acompanhamento diário de hábitos
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-accent-green">✓</span> Radar de progresso personalizado
+            </li>
+          </ul>
+
+          <MoneyBackGuarantee compact className="mb-5" />
+
+          <Button onClick={goToPayment}>Continuar para pagamento</Button>
 
           <p className="text-neutral-500 text-xs text-center mt-3">
             {selectedPlan === 'quarterly'
               ? PRICING.quarterly.footer
               : PRICING.monthly.footer}
           </p>
-
-          <div className="flex justify-center gap-4 mt-4 text-xs text-neutral-600">
-            <button className="hover:text-neutral-400">Termos</button>
-            <button className="hover:text-neutral-400">Restaurar</button>
-            <button className="hover:text-neutral-400">Privacidade</button>
-          </div>
         </div>
       </div>
     </div>

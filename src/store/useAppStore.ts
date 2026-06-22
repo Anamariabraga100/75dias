@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { analyzeProfile } from './profileAnalysis'
-import { logMirrorPhotoToCloud, scheduleProfileSync } from '../lib/userSync'
+import { logMirrorPhotoToCloud, scheduleProfileSync, flushProfileSync } from '../lib/userSync'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -108,6 +108,7 @@ interface AppState {
   currentDay: number
   onboardingComplete: boolean
   paymentComplete: boolean
+  pixViewed: boolean
   usePromoOffer: boolean
   mirrorPhotos: Record<number, string>
   taskChecksByDay: Record<number, Record<string, boolean>>
@@ -133,6 +134,9 @@ interface AppState {
   completeOnboarding: () => void
   enterAsReturningUser: () => void
   setPaymentComplete: () => void
+  /** Até integrar pagamento real: libera acesso após Pix ou "Já paguei". */
+  grantInterimPaymentAccess: () => void
+  markPixViewed: () => void
   setUsePromoOffer: (value: boolean) => void
   registerMirrorPhoto: (day: number, photoUrl: string) => void
   toggleTaskCheck: (day: number, taskId: string) => void
@@ -188,6 +192,7 @@ const initialState = {
   currentDay: 1,
   onboardingComplete: false,
   paymentComplete: false,
+  pixViewed: false,
   usePromoOffer: false,
   mirrorPhotos: {} as Record<number, string>,
   taskChecksByDay: {} as Record<number, Record<string, boolean>>,
@@ -210,7 +215,7 @@ export const useAppStore = create<AppState>()(
           email: profile.email ?? state.email,
           avatarUrl: profile.avatarUrl !== undefined ? profile.avatarUrl : state.avatarUrl,
         })),
-      clearUserProfile: () => set({ email: '', avatarUrl: null }),
+      clearUserProfile: () => set({ email: '', avatarUrl: null, authUserId: null }),
       setGender: (gender) => set({ gender }),
       toggleGoal: (goal) => {
         const goals = get().goals
@@ -263,7 +268,7 @@ export const useAppStore = create<AppState>()(
         set({ startDate: option, customStartDate: customDate ?? null, currentDay: 1 }),
       completeOnboarding: () => {
         set({ onboardingComplete: true, currentDay: 1 })
-        scheduleProfileSync()
+        void flushProfileSync()
       },
       enterAsReturningUser: () =>
         set((state) => ({
@@ -274,8 +279,13 @@ export const useAppStore = create<AppState>()(
         })),
       setPaymentComplete: () => {
         set({ paymentComplete: true })
-        scheduleProfileSync()
+        void flushProfileSync()
       },
+      grantInterimPaymentAccess: () => {
+        set({ onboardingComplete: true, paymentComplete: true, pixViewed: true })
+        void flushProfileSync()
+      },
+      markPixViewed: () => set({ pixViewed: true }),
       setUsePromoOffer: (value) => set({ usePromoOffer: value }),
       registerMirrorPhoto: (day, photoUrl) => {
         const current = get().mirrorPhotos

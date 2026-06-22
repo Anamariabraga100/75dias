@@ -9,7 +9,8 @@ import {
 } from './appUrl'
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
-import { hydrateFromCloud } from './userSync'
+import { hydrateFromCloud, flushProfileSync } from './userSync'
+import { getPostAuthPath } from './onboardingRoute'
 
 export class EmailLinkedToGoogleError extends Error {
   constructor() {
@@ -269,6 +270,7 @@ export function applySessionToStore(session: Session) {
 }
 
 export async function signOut() {
+  await flushProfileSync()
   if (supabase) {
     await supabase.auth.signOut()
   }
@@ -276,13 +278,10 @@ export async function signOut() {
 }
 
 export async function navigateAfterAuth(navigate: NavigateFunction, _options?: { returning?: boolean }) {
-  const onboardingDone = await hydrateFromCloud()
+  await hydrateFromCloud()
 
-  if (onboardingDone) {
-    navigate('/app', { replace: true })
-  } else {
-    navigate('/onboarding/nome', { replace: true })
-  }
+  const { onboardingComplete, paymentComplete, pixViewed } = useAppStore.getState()
+  navigate(getPostAuthPath(onboardingComplete, paymentComplete, pixViewed), { replace: true })
 }
 
 export async function getCurrentSession() {

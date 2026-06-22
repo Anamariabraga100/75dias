@@ -15,7 +15,7 @@ const COMMITMENTS = [
 
 export function ContractPage() {
   const navigate = useNavigate()
-  const { name, signed, setSigned } = useAppStore()
+  const { name, signed, setSigned, completeOnboarding } = useAppStore()
   const [localSigned, setLocalSigned] = useState(signed)
   const displayName = name || 'você'
 
@@ -29,7 +29,10 @@ export function ContractPage() {
       footer={
         <Button
           disabled={!localSigned}
-          onClick={() => navigate('/onboarding/planos')}
+          onClick={() => {
+            completeOnboarding()
+            navigate('/onboarding/planos')
+          }}
         >
           Continuar
         </Button>

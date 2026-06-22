@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { AppShell } from '../../components/layout/AppShell'
 import { ProgressBanner } from '../../components/ui/ProgressBanner'
@@ -7,7 +6,6 @@ import { ChallengeLevelCard } from '../../components/ui/ChallengeLevelCard'
 import { ChallengePreviewModal } from '../../components/ui/ChallengePreviewModal'
 import { ChallengeConfirmModal } from '../../components/ui/ChallengeConfirmModal'
 import { DailyTasksPanel } from '../../components/app/DailyTasksPanel'
-import { Logo } from '../../components/ui/Logo'
 import { Button } from '../../components/ui/Button'
 import { formatPreferredName } from '../../lib/displayName'
 import {
@@ -24,11 +22,9 @@ type ConfirmState =
   | null
 
 export function HomePage() {
-  const navigate = useNavigate()
   const tasksRef = useRef<HTMLDivElement>(null)
   const {
     name,
-    onboardingComplete,
     challengeAccepted,
     challengeId,
     currentDay,
@@ -38,25 +34,6 @@ export function HomePage() {
   } = useAppStore()
   const [previewId, setPreviewId] = useState<ChallengeId | null>(null)
   const [confirm, setConfirm] = useState<ConfirmState>(null)
-
-  if (!onboardingComplete) {
-    return (
-      <div className="min-h-dvh bg-black flex items-center justify-center px-6">
-        <div className="text-center">
-          <Logo size="lg" />
-          <p className="text-neutral-400 mt-4 mb-6">
-            Complete o onboarding para começar seu Reset90
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-white text-black font-bold px-8 py-3 rounded-2xl"
-          >
-            Começar
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   const openPreview = (id: ChallengeId) => setPreviewId(id)
 

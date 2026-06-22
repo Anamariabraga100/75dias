@@ -26,6 +26,8 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminSubscribersPage } from './pages/admin/AdminSubscribersPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { OnboardingGuard } from './components/onboarding/OnboardingGuard'
+import { OnboardingIndexRedirect } from './components/onboarding/OnboardingIndexRedirect'
+import { AppAccessGuard } from './components/app/AppAccessGuard'
 
 export default function App() {
   return (
@@ -37,6 +39,7 @@ export default function App() {
         <Route path="/auth/email" element={<EmailAuthPage />} />
 
         <Route path="/onboarding" element={<OnboardingGuard />}>
+          <Route index element={<OnboardingIndexRedirect />} />
           <Route path="nome" element={<NamePage />} />
           <Route path="objetivos" element={<GoalsPage />} />
           <Route path="quiz/:step" element={<RoutineQuestionPage />} />
@@ -63,11 +66,13 @@ export default function App() {
           <Route path="niveis" element={<Navigate to="/app" replace />} />
         </Route>
 
-        <Route path="/app" element={<HomePage />} />
-        <Route path="/app/hoje" element={<Navigate to="/app" replace />} />
-        <Route path="/app/insights" element={<Navigate to="/app" replace />} />
-        <Route path="/app/progresso" element={<ProgressPage />} />
-        <Route path="/app/galeria" element={<Navigate to="/app/progresso#evolucao" replace />} />
+        <Route path="/app" element={<AppAccessGuard />}>
+          <Route index element={<HomePage />} />
+          <Route path="hoje" element={<Navigate to="/app" replace />} />
+          <Route path="insights" element={<Navigate to="/app" replace />} />
+          <Route path="progresso" element={<ProgressPage />} />
+          <Route path="galeria" element={<Navigate to="/app/progresso#evolucao" replace />} />
+        </Route>
 
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminGuard />}>

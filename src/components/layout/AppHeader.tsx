@@ -30,8 +30,8 @@ function StreakModal({
           <p className="text-neutral-600 text-xs mt-1">Dia {programDay} do programa</p>
         </div>
         <p className="text-neutral-300 text-sm leading-relaxed text-center mb-5">
-          {days === 0
-            ? 'Complete os hábitos de hoje para começar sua investida. Cada dia fechado conta.'
+          {days === 1
+            ? 'Seu primeiro dia já conta. Complete os hábitos de hoje para manter a investida amanhã.'
             : days >= 7
               ? 'Uma semana ou mais fechando o dia completo. Disciplina não é motivação — é repetir mesmo nos dias difíceis.'
               : 'Dias seguidos com hábitos (e foto, se for dia de registro) concluídos. Não quebre a corrente.'}
@@ -71,12 +71,15 @@ export function AppHeader() {
   const programDay = getDisplayDay(challengeAccepted, currentDay)
   const investedDays = useMemo(
     () =>
-      computeInvestedDays(
-        challengeAccepted,
-        challengeId,
-        currentDay,
-        taskChecksByDay,
-        mirrorPhotos
+      Math.max(
+        1,
+        computeInvestedDays(
+          challengeAccepted,
+          challengeId,
+          currentDay,
+          taskChecksByDay,
+          mirrorPhotos
+        )
       ),
     [challengeAccepted, challengeId, currentDay, taskChecksByDay, mirrorPhotos]
   )
