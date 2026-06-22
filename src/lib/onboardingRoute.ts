@@ -21,3 +21,10 @@ export function getPostAuthPath(
   if (onboardingComplete) return '/onboarding/planos'
   return '/onboarding/nome'
 }
+
+/** Rotas de login/cadastro — usuário autenticado é redirecionado ao app. */
+export function shouldRedirectAuthenticatedFrom(pathname: string): boolean {
+  if (pathname.startsWith('/admin')) return false
+  if (pathname === '/auth/callback') return false
+  return pathname === '/' || pathname.startsWith('/auth/email')
+}

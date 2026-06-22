@@ -32,8 +32,8 @@ import { AppAccessGuard } from './components/app/AppAccessGuard'
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthSessionSync />
-      <Routes>
+      <AuthSessionSync>
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/auth/email" element={<EmailAuthPage />} />
@@ -84,7 +84,8 @@ export default function App() {
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </AuthSessionSync>
     </BrowserRouter>
   )
 }

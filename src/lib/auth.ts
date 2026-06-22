@@ -286,8 +286,18 @@ export async function navigateAfterAuth(navigate: NavigateFunction, _options?: {
 
 export async function getCurrentSession() {
   if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
+  const { data, error } = await supabase.auth.getSession()
+  if (error || !data.session) return null
   return data.session
+}
+
+export async function restoreAuthSession() {
+  const session = await getCurrentSession()
+  if (!session) return null
+
+  applySessionToStore(session)
+  await hydrateFromCloud()
+  return session
 }
 
 export function assertSupabaseReady() {

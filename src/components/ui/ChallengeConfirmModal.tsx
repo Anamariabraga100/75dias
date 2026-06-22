@@ -29,27 +29,29 @@ export function ChallengeConfirmModal(props: ChallengeConfirmModalProps) {
 
   return (
     <BottomSheet onClose={onCancel} className="bg-black/80">
-      <BottomSheetPanel className="p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-              isAccept ? 'bg-accent-blue/20' : 'bg-red-500/20'
-            }`}
-          >
-            {isAccept ? (
-              <Flame size={22} className="text-accent-blue" />
-            ) : (
-              <AlertTriangle size={22} className="text-red-400" />
-            )}
+      <BottomSheetPanel className="p-5 w-full min-w-0">
+        <div className="w-full min-w-0">
+          <div className="flex items-start justify-between gap-3 mb-4 w-full">
+            <div
+              className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center ${
+                isAccept ? 'bg-accent-blue/20' : 'bg-red-500/20'
+              }`}
+            >
+              {isAccept ? (
+                <Flame size={22} className="text-accent-blue" />
+              ) : (
+                <AlertTriangle size={22} className="text-red-400" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-8 h-8 shrink-0 rounded-full bg-neutral-800 flex items-center justify-center"
+              aria-label="Fechar"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center"
-          >
-            <X size={16} />
-          </button>
-        </div>
 
         {isAccept ? (
           <>
@@ -70,7 +72,7 @@ export function ChallengeConfirmModal(props: ChallengeConfirmModalProps) {
                 os dias, mesmo quando não estiver motivado.
               </p>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-full">
               <Button onClick={props.onConfirm}>{LEVEL_META[props.challengeId].ctaConfirm}</Button>
               <button
                 type="button"
@@ -108,7 +110,7 @@ export function ChallengeConfirmModal(props: ChallengeConfirmModalProps) {
                 Não há como recuperar os dias já cumpridos depois de desistir.
               </p>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-full">
               <Button variant="danger" onClick={props.onConfirm}>
                 Sim, desistir
               </Button>
@@ -122,6 +124,7 @@ export function ChallengeConfirmModal(props: ChallengeConfirmModalProps) {
             </div>
           </>
         )}
+        </div>
       </BottomSheetPanel>
     </BottomSheet>
   )
