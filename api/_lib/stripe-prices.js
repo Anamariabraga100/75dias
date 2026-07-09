@@ -11,8 +11,8 @@ function resolvePriceId(selectedPlan, usePromoOffer) {
   if (selectedPlan === 'monthly') {
     return requireEnv('STRIPE_PRICE_MONTHLY')
   }
-  if (usePromoOffer) {
-    return requireEnv('STRIPE_PRICE_PROMO_QUARTERLY')
+  if (usePromoOffer && process.env.STRIPE_PRICE_PROMO_QUARTERLY) {
+    return process.env.STRIPE_PRICE_PROMO_QUARTERLY
   }
   return requireEnv('STRIPE_PRICE_QUARTERLY')
 }
