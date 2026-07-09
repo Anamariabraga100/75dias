@@ -1,6 +1,7 @@
-import type { PlanType, ChallengeId } from '../store/useAppStore'
+import type { ChallengeId } from '../store/useAppStore'
+import type { SubscriptionStatus } from './subscription'
+import { hasActiveAccess, parseSubscriptionStatus } from './subscription'
 import { useAppStore } from '../store/useAppStore'
-import { PRICING } from './pricing'
 import { computeInvestedDays } from './streak'
 import { supabase } from './supabase'
 
@@ -23,11 +24,19 @@ type CloudProfile = {
   selected_plan: string | null
   use_promo_offer: boolean
   payment_complete: boolean
+  subscription_status: string | null
   onboarding_complete: boolean
   challenge_id: string | null
   challenge_accepted: boolean
   current_day: number
   discipline_score: number | null
+}
+
+function userHasPaidAccess(
+  subscriptionStatus: SubscriptionStatus | null,
+  paymentComplete: boolean
+) {
+  return hasActiveAccess(subscriptionStatus, paymentComplete)
 }
 
 function isChallengeId(value: string | null): value is ChallengeId {
@@ -49,7 +58,7 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const { data: profile, error } = await client
     .from('profiles')
     .select(
-      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
+      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
     )
     .eq('user_id', userId)
     .maybeSingle()
@@ -57,15 +66,24 @@ export async function hydrateFromCloud(): Promise<boolean> {
   if (error) {
     useAppStore.setState({ authUserId: userId })
     const state = useAppStore.getState()
-    return Boolean(state.onboardingComplete && state.paymentComplete)
+    return Boolean(
+      state.onboardingComplete &&
+        userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
+    )
   }
 
   if (!profile) {
     useAppStore.setState({ authUserId: userId })
     const state = useAppStore.getState()
-    if (state.onboardingComplete || state.paymentComplete) {
+    if (
+      state.onboardingComplete ||
+      userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
+    ) {
       await syncProfileToCloud()
-      return Boolean(state.onboardingComplete && state.paymentComplete)
+      return Boolean(
+        state.onboardingComplete &&
+          userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
+      )
     }
     useAppStore.getState().resetProgressForNewAccount(userId)
     return false
@@ -73,6 +91,8 @@ export async function hydrateFromCloud(): Promise<boolean> {
 
   const row = profile as CloudProfile
   const challengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
+  const subscriptionStatus =
+    parseSubscriptionStatus(row.subscription_status) ?? stateBefore.subscriptionStatus
 
   useAppStore.setState({
     authUserId: userId,
@@ -82,6 +102,7 @@ export async function hydrateFromCloud(): Promise<boolean> {
     selectedPlan: row.selected_plan === 'monthly' ? 'monthly' : 'quarterly',
     usePromoOffer: row.use_promo_offer,
     paymentComplete: row.payment_complete || stateBefore.paymentComplete,
+    subscriptionStatus,
     onboardingComplete: row.onboarding_complete || stateBefore.onboardingComplete,
     challengeId,
     challengeAccepted: row.challenge_accepted,
@@ -90,7 +111,10 @@ export async function hydrateFromCloud(): Promise<boolean> {
   })
 
   const final = useAppStore.getState()
-  return Boolean(final.onboardingComplete && final.paymentComplete)
+  return Boolean(
+    final.onboardingComplete &&
+      userHasPaidAccess(final.subscriptionStatus, final.paymentComplete)
+  )
 }
 
 export async function syncProfileToCloud() {
@@ -116,7 +140,6 @@ export async function syncProfileToCloud() {
       avatar_url: state.avatarUrl,
       selected_plan: state.selectedPlan,
       use_promo_offer: state.usePromoOffer,
-      payment_complete: state.paymentComplete,
       onboarding_complete: state.onboardingComplete,
       challenge_id: state.challengeId,
       challenge_accepted: state.challengeAccepted,
@@ -131,33 +154,6 @@ export async function syncProfileToCloud() {
   )
 }
 
-export async function recordPaymentToCloud(
-  plan: PlanType,
-  method: 'pix' | 'card',
-  usePromo: boolean
-) {
-  const client = getClient()
-  const userId = await getAuthUserId()
-  if (!client || !userId) return
-
-  const amount =
-    usePromo && plan === 'quarterly'
-      ? PRICING.promoQuarterly.total
-      : plan === 'quarterly'
-        ? PRICING.quarterly.total
-        : PRICING.monthly.total
-
-  await client.from('payments').insert({
-    user_id: userId,
-    amount,
-    plan_type: plan,
-    method,
-    status: 'completed',
-    use_promo: usePromo,
-  })
-
-  await syncProfileToCloud()
-}
 
 export async function logMirrorPhotoToCloud(day: number) {
   const client = getClient()

@@ -16,7 +16,7 @@ export const PRICING = {
     displayPerMonth: 'R$ 19,97',
     displayTotal: 'R$ 59,90',
     period: '/mês',
-    footer: 'R$ 59,90 a cada 3 meses',
+    footer: 'Cobrado a cada 3 meses (R$ 59,90). Cancele quando quiser.',
     planLabel: 'Plano Trimestral',
     discountPercent: 43,
   },

@@ -14,10 +14,10 @@ export function isOnboardingPaymentPath(pathname: string): boolean {
 
 export function getPostAuthPath(
   onboardingComplete: boolean,
-  paymentComplete: boolean,
+  paid: boolean,
   pixViewed = false
 ): '/app' | '/onboarding/planos' | '/onboarding/nome' {
-  if (onboardingComplete && (paymentComplete || pixViewed)) return '/app'
+  if (onboardingComplete && (paid || pixViewed)) return '/app'
   if (onboardingComplete) return '/onboarding/planos'
   return '/onboarding/nome'
 }

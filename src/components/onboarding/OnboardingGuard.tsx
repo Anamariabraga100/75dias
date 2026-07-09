@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { isOnboardingPaymentPath } from '../../lib/onboardingRoute'
+import { hasActiveAccess } from '../../lib/subscription'
 import { useAppStore } from '../../store/useAppStore'
 
 /** Onboarding uma vez; quem não pagou volta direto aos planos. */
@@ -7,8 +8,10 @@ export function OnboardingGuard() {
   const location = useLocation()
   const onboardingComplete = useAppStore((s) => s.onboardingComplete)
   const paymentComplete = useAppStore((s) => s.paymentComplete)
+  const subscriptionStatus = useAppStore((s) => s.subscriptionStatus)
+  const paid = hasActiveAccess(subscriptionStatus, paymentComplete)
 
-  if (onboardingComplete && paymentComplete) {
+  if (onboardingComplete && paid) {
     const onPaymentFlow =
       location.pathname === '/onboarding/pagamento/sucesso' ||
       location.pathname === '/onboarding/pagamento'
@@ -16,7 +19,7 @@ export function OnboardingGuard() {
     return <Navigate to="/app" replace />
   }
 
-  if (onboardingComplete && !paymentComplete && !isOnboardingPaymentPath(location.pathname)) {
+  if (onboardingComplete && !paid && !isOnboardingPaymentPath(location.pathname)) {
     return <Navigate to="/onboarding/planos" replace />
   }
 

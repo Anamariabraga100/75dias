@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { analyzeProfile } from './profileAnalysis'
 import { logMirrorPhotoToCloud, scheduleProfileSync, flushProfileSync } from '../lib/userSync'
+import type { SubscriptionStatus } from '../lib/subscription'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -108,6 +109,7 @@ interface AppState {
   currentDay: number
   onboardingComplete: boolean
   paymentComplete: boolean
+  subscriptionStatus: SubscriptionStatus | null
   pixViewed: boolean
   usePromoOffer: boolean
   mirrorPhotos: Record<number, string>
@@ -192,6 +194,7 @@ const initialState = {
   currentDay: 1,
   onboardingComplete: false,
   paymentComplete: false,
+  subscriptionStatus: null as SubscriptionStatus | null,
   pixViewed: false,
   usePromoOffer: false,
   mirrorPhotos: {} as Record<number, string>,
@@ -282,7 +285,12 @@ export const useAppStore = create<AppState>()(
         void flushProfileSync()
       },
       grantInterimPaymentAccess: () => {
-        set({ onboardingComplete: true, paymentComplete: true, pixViewed: true })
+        set({
+          onboardingComplete: true,
+          paymentComplete: true,
+          subscriptionStatus: 'active',
+          pixViewed: true,
+        })
         void flushProfileSync()
       },
       markPixViewed: () => set({ pixViewed: true }),

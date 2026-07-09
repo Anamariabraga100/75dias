@@ -11,6 +11,7 @@ import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { hydrateFromCloud, flushProfileSync } from './userSync'
 import { getPostAuthPath } from './onboardingRoute'
+import { hasActiveAccess } from './subscription'
 
 export class EmailLinkedToGoogleError extends Error {
   constructor() {
@@ -280,8 +281,10 @@ export async function signOut() {
 export async function navigateAfterAuth(navigate: NavigateFunction, _options?: { returning?: boolean }) {
   await hydrateFromCloud()
 
-  const { onboardingComplete, paymentComplete, pixViewed } = useAppStore.getState()
-  navigate(getPostAuthPath(onboardingComplete, paymentComplete, pixViewed), { replace: true })
+  const { onboardingComplete, paymentComplete, subscriptionStatus, pixViewed } =
+    useAppStore.getState()
+  const paid = hasActiveAccess(subscriptionStatus, paymentComplete)
+  navigate(getPostAuthPath(onboardingComplete, paid, pixViewed), { replace: true })
 }
 
 export async function getCurrentSession() {
