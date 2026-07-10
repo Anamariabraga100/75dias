@@ -10,6 +10,7 @@ const {
   markPaymentRefunded,
   markPaymentDisputed,
   parseMetadata,
+  fulfillCheckoutSession,
 } = require('../_lib/stripe-billing')
 const { claimStripeEvent, findUserIdByCustomer } = require('../_lib/stripe-events')
 
@@ -39,38 +40,14 @@ async function resolveSubscriptionContext(subscription) {
 }
 
 async function handleCheckoutCompleted(session, event) {
-  const { userId, plan, usePromo } = parseMetadata(session.metadata)
-  if (!userId) {
-    console.error('[stripe/webhook] checkout.session.completed sem userId')
-    return
-  }
-
   const admin = getSupabaseAdmin()
-  const subscriptionId =
-    typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
-  const customerId =
-    typeof session.customer === 'string' ? session.customer : session.customer?.id
-
-  await activateSubscription(admin, {
-    userId,
-    customerId,
-    subscriptionId,
-    plan,
-    usePromo,
-  })
-
-  const amountPaid = session.amount_total ? session.amount_total / 100 : undefined
-  await recordPayment(admin, {
-    userId,
-    plan,
-    usePromo,
-    amount: amountPaid,
-    sessionId: session.id,
-    invoiceId: typeof session.invoice === 'string' ? session.invoice : session.invoice?.id,
-    method: 'card',
+  const result = await fulfillCheckoutSession(admin, session, {
     eventType: event.type,
     stripeEventId: event.id,
   })
+  if (!result.ok) {
+    console.error('[stripe/webhook] checkout.session.completed', result.error)
+  }
 }
 
 async function handleInvoicePaid(invoice, event) {
@@ -214,8 +191,14 @@ async function handleDisputeClosed(dispute) {
 
 async function processStripeEvent(event) {
   const admin = getSupabaseAdmin()
-  const claim = await claimStripeEvent(admin, event)
-  if (!claim.claimed) return { duplicate: true }
+
+  try {
+    const claim = await claimStripeEvent(admin, event)
+    if (!claim.claimed) return { duplicate: true }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'event_log_failed'
+    console.warn('[stripe/webhook] stripe_events log skipped:', message)
+  }
 
   switch (event.type) {
     case 'checkout.session.completed':

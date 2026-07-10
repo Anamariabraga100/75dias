@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, Loader2, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAppStore } from '../../store/useAppStore'
 import { getPlanDisplayLabel } from '../../lib/pricing'
-import { waitForActiveSubscription } from '../../lib/stripeCheckout'
-import { hydrateFromCloud } from '../../lib/userSync'
+import { verifyCheckoutSession, waitForActiveSubscription } from '../../lib/stripeCheckout'
+import { confirmPaymentFromCloud } from '../../lib/userSync'
 
 export function PaymentSuccessPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionId = searchParams.get('session_id')
   const { name, selectedPlan, usePromoOffer, setStartDate, completeOnboarding } =
     useAppStore()
   const displayName = name || 'você'
@@ -21,7 +23,11 @@ export function PaymentSuccessPage() {
     let active = true
 
     const confirm = async () => {
-      const ready = await waitForActiveSubscription(hydrateFromCloud)
+      if (sessionId) {
+        await verifyCheckoutSession(sessionId)
+      }
+
+      const ready = await waitForActiveSubscription(confirmPaymentFromCloud, 12, 1500)
       if (!active) return
       setConfirmed(ready)
       setConfirming(false)
@@ -31,12 +37,22 @@ export function PaymentSuccessPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [sessionId])
 
   const startNow = () => {
     setStartDate('today')
     completeOnboarding()
     navigate('/app')
+  }
+
+  const retryConfirm = async () => {
+    setConfirming(true)
+    if (sessionId) {
+      await verifyCheckoutSession(sessionId)
+    }
+    const ready = await waitForActiveSubscription(confirmPaymentFromCloud, 8, 1500)
+    setConfirmed(ready)
+    setConfirming(false)
   }
 
   return (
@@ -80,8 +96,8 @@ export function PaymentSuccessPage() {
             <>
               <h1 className="text-2xl font-bold mb-2">Pagamento em processamento</h1>
               <p className="text-neutral-400 mb-6 max-w-xs text-sm">
-                Ainda estamos confirmando com a Stripe. Se você já pagou, aguarde um momento e
-                tente novamente.
+                Se você já pagou, toque em verificar novamente. Se persistir, confira o webhook
+                Stripe na Vercel (STRIPE_WEBHOOK_SECRET).
               </p>
             </>
           )}
@@ -118,9 +134,7 @@ export function PaymentSuccessPage() {
           ) : confirmed ? (
             <Button onClick={startNow}>Começar agora</Button>
           ) : (
-            <Button onClick={() => void hydrateFromCloud().then(() => window.location.reload())}>
-              Verificar novamente
-            </Button>
+            <Button onClick={() => void retryConfirm()}>Verificar novamente</Button>
           )}
         </div>
       </div>

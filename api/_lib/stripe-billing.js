@@ -7,15 +7,20 @@ async function activateSubscription(admin, {
   plan,
   usePromo,
 }) {
-  await admin.from('profiles').update({
-    payment_complete: true,
-    subscription_status: 'active',
-    stripe_customer_id: customerId || null,
-    stripe_subscription_id: subscriptionId || null,
-    selected_plan: plan,
-    use_promo_offer: usePromo,
-    updated_at: new Date().toISOString(),
-  }).eq('user_id', userId)
+  await admin.from('profiles').upsert(
+    {
+      user_id: userId,
+      payment_complete: true,
+      subscription_status: 'active',
+      onboarding_complete: true,
+      stripe_customer_id: customerId || null,
+      stripe_subscription_id: subscriptionId || null,
+      selected_plan: plan,
+      use_promo_offer: usePromo,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  )
 }
 
 async function setSubscriptionStatus(admin, subscriptionId, status, paymentComplete) {
@@ -161,6 +166,45 @@ function parseMetadata(metadata) {
   return { userId, plan, usePromo }
 }
 
+async function fulfillCheckoutSession(admin, session, options = {}) {
+  const { userId, plan, usePromo } = parseMetadata(session.metadata)
+  if (!userId) {
+    return { ok: false, error: 'missing_user_id' }
+  }
+
+  if (session.payment_status !== 'paid' && session.status !== 'complete') {
+    return { ok: false, error: 'not_paid', payment_status: session.payment_status }
+  }
+
+  const subscriptionId =
+    typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
+  const customerId =
+    typeof session.customer === 'string' ? session.customer : session.customer?.id
+
+  await activateSubscription(admin, {
+    userId,
+    customerId,
+    subscriptionId,
+    plan,
+    usePromo,
+  })
+
+  const amountPaid = session.amount_total ? session.amount_total / 100 : undefined
+  await recordPayment(admin, {
+    userId,
+    plan,
+    usePromo,
+    amount: amountPaid,
+    sessionId: session.id,
+    invoiceId: typeof session.invoice === 'string' ? session.invoice : session.invoice?.id,
+    method: 'card',
+    eventType: options.eventType || 'checkout.session.completed',
+    stripeEventId: options.stripeEventId || null,
+  })
+
+  return { ok: true }
+}
+
 module.exports = {
   activateSubscription,
   setSubscriptionStatus,
@@ -170,4 +214,5 @@ module.exports = {
   markPaymentRefunded,
   markPaymentDisputed,
   parseMetadata,
+  fulfillCheckoutSession,
 }

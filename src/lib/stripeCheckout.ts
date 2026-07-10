@@ -28,6 +28,29 @@ export async function startStripeCheckout(
   return payload.url
 }
 
+export async function verifyCheckoutSession(sessionId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const session = await ensureAuthSession()
+
+  const res = await fetch('/api/stripe/verify-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ sessionId }),
+  })
+
+  const payload = (await res.json().catch(() => ({}))) as { active?: boolean; error?: string }
+  if (!res.ok) {
+    console.warn('[verifyCheckoutSession]', payload.error)
+    return false
+  }
+
+  return Boolean(payload.active)
+}
+
 export async function waitForActiveSubscription(
   hydrate: () => Promise<boolean>,
   maxAttempts = 15,

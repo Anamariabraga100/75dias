@@ -104,6 +104,13 @@ export async function hydrateFromCloud(): Promise<boolean> {
   )
 }
 
+/** Após pagamento — só precisa confirmar assinatura ativa (não exige onboarding no retorno). */
+export async function confirmPaymentFromCloud(): Promise<boolean> {
+  await hydrateFromCloud()
+  const state = useAppStore.getState()
+  return userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
+}
+
 export async function syncProfileToCloud() {
   const client = getClient()
   const userId = await getAuthUserId()
