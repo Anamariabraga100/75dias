@@ -1,15 +1,17 @@
-import { useMemo, useRef, useState } from 'react'
-import { Bell } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { Bell, Clock, Shield, Zap } from 'lucide-react'
 import { Logo } from '../ui/Logo'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { useAppStore } from '../../store/useAppStore'
 import { NotificationsDropdown } from '../app/NotificationsDropdown'
 import { ProfileDropdown } from '../app/ProfileDropdown'
+import { XpModal } from '../app/XpModal'
 import { countUnreadNotifications } from '../../lib/notifications'
-import { computeInvestedDays } from '../../lib/streak'
 import { UserAvatar } from '../ui/UserAvatar'
-
 import { getDisplayDay } from '../../lib/demoProgress'
+import { formatMidnightClock } from '../../lib/dayUnlock'
+import { formatXp } from '../../lib/xp'
+import { useMidnightCountdown } from '../../hooks/useMidnightCountdown'
 
 function StreakModal({
   days,
@@ -31,10 +33,10 @@ function StreakModal({
         </div>
         <p className="text-neutral-300 text-sm leading-relaxed text-center mb-5">
           {days === 1
-            ? 'Seu primeiro dia já conta. Complete os hábitos de hoje para manter a investida amanhã.'
+            ? 'Você está no primeiro dia do Reset90. Cada dia de disciplina fortalece quem você está se tornando.'
             : days >= 7
-              ? 'Uma semana ou mais fechando o dia completo. Disciplina não é motivação — é repetir mesmo nos dias difíceis.'
-              : 'Dias seguidos com hábitos (e foto, se for dia de registro) concluídos. Não quebre a corrente.'}
+              ? `${days} dias no programa — uma semana ou mais de investida real. Disciplina não é motivação: é repetir mesmo nos dias difíceis.`
+              : `Dia ${days} de disciplina no programa. Continue aparecendo — consistência silenciosa transforma.`}
         </p>
         <p className="text-neutral-500 text-xs text-center mb-5">
           Continue marcando seus hábitos na aba Início para manter a investida viva.
@@ -51,6 +53,46 @@ function StreakModal({
   )
 }
 
+function HeaderStatPill({
+  icon,
+  value,
+  label,
+  onClick,
+  disabled,
+  accent,
+}: {
+  icon: ReactNode
+  value: string
+  label: string
+  onClick?: () => void
+  disabled?: boolean
+  accent?: 'green' | 'amber' | 'sky'
+}) {
+  const accentClass =
+    accent === 'amber'
+      ? 'border-amber-500/30'
+      : accent === 'sky'
+        ? 'border-sky-500/30'
+        : 'border-neutral-700/80'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center gap-1.5 bg-black/40 border rounded-full px-2 py-1 transition-colors ${accentClass} ${
+        onClick && !disabled ? 'hover:bg-neutral-900' : disabled ? 'opacity-50 cursor-default' : ''
+      }`}
+    >
+      {icon}
+      <div className="leading-tight text-left">
+        <span className="text-sm font-bold tabular-nums">{value}</span>
+        <span className="text-[8px] text-neutral-500 block whitespace-nowrap">{label}</span>
+      </div>
+    </button>
+  )
+}
+
 export function AppHeader() {
   const {
     name,
@@ -61,28 +103,32 @@ export function AppHeader() {
     mirrorPhotos,
     taskChecksByDay,
     readNotificationIds,
+    dismissedNotificationIds,
+    dayCompletedAt,
+    shieldedDays,
+    totalXp,
+    disciplineShields,
   } = useAppStore()
   const bellRef = useRef<HTMLButtonElement>(null)
   const avatarRef = useRef<HTMLButtonElement>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [streakOpen, setStreakOpen] = useState(false)
+  const [xpOpen, setXpOpen] = useState(false)
 
   const programDay = getDisplayDay(challengeAccepted, currentDay)
-  const investedDays = useMemo(
-    () =>
-      Math.max(
-        1,
-        computeInvestedDays(
-          challengeAccepted,
-          challengeId,
-          currentDay,
-          taskChecksByDay,
-          mirrorPhotos
-        )
-      ),
-    [challengeAccepted, challengeId, currentDay, taskChecksByDay, mirrorPhotos]
-  )
+  const investedDays = challengeAccepted ? programDay : 0
+
+  const { showCountdown, remainingMs } = useMidnightCountdown({
+    challengeAccepted,
+    challengeId,
+    currentDay,
+    taskChecksByDay,
+    mirrorPhotos,
+    dayCompletedAt,
+    shieldedDays,
+  })
+
   const unreadCount = useMemo(
     () =>
       countUnreadNotifications({
@@ -92,6 +138,7 @@ export function AppHeader() {
         mirrorPhotos,
         taskChecksByDay,
         readNotificationIds,
+        dismissedNotificationIds,
       }),
     [
       challengeAccepted,
@@ -100,6 +147,7 @@ export function AppHeader() {
       mirrorPhotos,
       taskChecksByDay,
       readNotificationIds,
+      dismissedNotificationIds,
     ]
   )
   const hasUnread = unreadCount > 0
@@ -117,24 +165,45 @@ export function AppHeader() {
   return (
     <>
       <header className="app-header sticky top-0 z-40 shrink-0">
-        <div className="flex items-center justify-between px-5 pt-[max(0.875rem,env(safe-area-inset-top))] pb-4">
+        <div className="flex items-center justify-between px-5 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 gap-2">
           <Logo size="sm" to="/app" />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setStreakOpen(true)}
-              aria-label={`${investedDays} dias de investida`}
-              className="flex items-center gap-1.5 bg-black/40 border border-neutral-700/80 rounded-full px-2.5 py-1 hover:bg-neutral-900 transition-colors"
-            >
-              <span className="text-sm">🔥</span>
-              <div className="leading-tight text-left">
-                <span className="text-sm font-bold tabular-nums">{investedDays}</span>
-                <span className="text-[9px] text-neutral-500 block whitespace-nowrap">
-                  dias de investida
-                </span>
-              </div>
-            </button>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+            {challengeAccepted && (
+              <>
+                <HeaderStatPill
+                  icon={<span className="text-sm">🔥</span>}
+                  value={String(investedDays)}
+                  label="investida"
+                  onClick={() => setStreakOpen(true)}
+                />
+                <HeaderStatPill
+                  icon={<Zap size={13} className="text-amber-400" />}
+                  value={formatXp(totalXp)}
+                  label="XP"
+                  accent="amber"
+                  onClick={() => setXpOpen(true)}
+                />
+                {disciplineShields > 0 && (
+                  <HeaderStatPill
+                    icon={<Shield size={13} className="text-sky-400" />}
+                    value={String(disciplineShields)}
+                    label="escudo"
+                    accent="sky"
+                    onClick={() => setXpOpen(true)}
+                  />
+                )}
+                {showCountdown && (
+                  <HeaderStatPill
+                    icon={<Clock size={13} className="text-sky-400" />}
+                    value={formatMidnightClock(remainingMs)}
+                    label="próx. dia"
+                    accent="sky"
+                    disabled
+                  />
+                )}
+              </>
+            )}
 
             <button
               ref={bellRef}
@@ -142,7 +211,7 @@ export function AppHeader() {
               onClick={toggleNotifications}
               aria-expanded={notificationsOpen}
               aria-label="Notificações"
-              className={`relative w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+              className={`relative w-9 h-9 rounded-xl border flex items-center justify-center transition-colors shrink-0 ${
                 notificationsOpen
                   ? 'bg-neutral-800 border-neutral-600'
                   : 'bg-black/40 border-neutral-700/80 hover:bg-neutral-900'
@@ -160,7 +229,7 @@ export function AppHeader() {
               onClick={toggleProfile}
               aria-expanded={profileOpen}
               aria-label="Perfil"
-              className={`transition-all ${profileOpen ? 'opacity-100' : 'hover:opacity-90'}`}
+              className={`transition-all shrink-0 ${profileOpen ? 'opacity-100' : 'hover:opacity-90'}`}
             >
               <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" ring={profileOpen} />
             </button>
@@ -185,6 +254,7 @@ export function AppHeader() {
           onClose={() => setStreakOpen(false)}
         />
       )}
+      {xpOpen && <XpModal onClose={() => setXpOpen(false)} />}
     </>
   )
 }

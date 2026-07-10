@@ -122,7 +122,7 @@ export function EmailAuthPage() {
         : await signInWithEmail(email, password)
 
       if (session) {
-        await establishAuthSession(session)
+        await establishAuthSession(session, { freshAccount: isSignup })
         await navigateAfterAuth(navigate, {
           returning: !isSignup,
           next: nextPath ?? undefined,
@@ -157,7 +157,7 @@ export function EmailAuthPage() {
       setLoading(true)
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
-      await establishAuthSession(session)
+      await establishAuthSession(session, { freshAccount: isSignup })
       await navigateAfterAuth(navigate, { returning: !isSignup, next: nextPath ?? undefined })
     } catch (e) {
       setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
@@ -173,7 +173,7 @@ export function EmailAuthPage() {
       assertSupabaseReady()
       const session = await signInWithGoogle({ returning: !isSignup })
       if (session) {
-        await establishAuthSession(session)
+        await establishAuthSession(session, { freshAccount: isSignup })
         await navigateAfterAuth(navigate, { returning: !isSignup, next: nextPath ?? undefined })
       }
     } catch (e) {

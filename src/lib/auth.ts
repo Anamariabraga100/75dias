@@ -276,11 +276,29 @@ export async function signOut() {
   if (supabase) {
     await supabase.auth.signOut()
   }
-  useAppStore.getState().clearUserProfile()
+  useAppStore.getState().reset()
 }
 
-export async function establishAuthSession(session: Session) {
+type EstablishAuthSessionOptions = {
+  /** Conta recém-criada — zera progresso local antes de sincronizar com a nuvem. */
+  freshAccount?: boolean
+}
+
+export async function establishAuthSession(
+  session: Session,
+  options?: EstablishAuthSessionOptions
+) {
+  const previousUserId = useAppStore.getState().authUserId
+
+  if (
+    options?.freshAccount ||
+    (previousUserId && previousUserId !== session.user.id)
+  ) {
+    useAppStore.getState().resetProgressForNewAccount(session.user.id)
+  }
+
   applySessionToStore(session)
+  await hydrateFromCloud()
   await flushProfileSync()
   return session
 }

@@ -45,16 +45,16 @@ export function AdminLoginPage() {
   return (
     <div className="min-h-dvh bg-[#0a0a0a] flex flex-col items-center justify-center px-6">
       <Logo size="lg" />
-      <h1 className="text-xl font-bold mt-6 mb-6 tracking-tight">RESET90 - Área Admin</h1>
+      <p className="text-neutral-500 text-sm mt-4 mb-8">Área administrativa</p>
 
       <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
         {error && <p className="text-red-400 text-xs text-center">{error}</p>}
 
         <PasswordField
-          label="Senha admin"
+          label="Senha"
           value={password}
           onChange={setPassword}
-          placeholder="Senha do .env"
+          placeholder="Digite sua senha"
           autoComplete="current-password"
         />
 

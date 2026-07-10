@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { HeaderDropdown } from '../ui/HeaderDropdown'
 import { useAppStore } from '../../store/useAppStore'
 import { buildNotifications } from '../../lib/notifications'
+import { NotificationRow } from './NotificationRow'
 import type { RefObject } from 'react'
 
 type NotificationsDropdownProps = {
@@ -21,8 +22,9 @@ export function NotificationsDropdown({ anchorRef, open, onClose }: Notification
     mirrorPhotos,
     taskChecksByDay,
     readNotificationIds,
-    markNotificationRead,
-    markAllNotificationsRead,
+    dismissedNotificationIds,
+    dismissNotification,
+    dismissAllNotifications,
   } = useAppStore()
 
   const notifications = useMemo(
@@ -34,6 +36,7 @@ export function NotificationsDropdown({ anchorRef, open, onClose }: Notification
         mirrorPhotos,
         taskChecksByDay,
         readNotificationIds,
+        dismissedNotificationIds,
       }),
     [
       challengeAccepted,
@@ -42,21 +45,26 @@ export function NotificationsDropdown({ anchorRef, open, onClose }: Notification
       mirrorPhotos,
       taskChecksByDay,
       readNotificationIds,
+      dismissedNotificationIds,
     ]
   )
 
   const unreadCount = notifications.filter((n) => n.unread).length
 
-  const handleClick = (id: string, path?: string, hash?: string) => {
-    markNotificationRead(id)
+  const handleActivate = (id: string, path?: string, hash?: string) => {
+    dismissNotification(id)
     onClose()
     if (path) {
       navigate(hash ? `${path}#${hash}` : path)
     }
   }
 
+  const handleDismiss = (id: string) => {
+    dismissNotification(id)
+  }
+
   const handleMarkAllRead = () => {
-    markAllNotificationsRead(notifications.map((n) => n.id))
+    dismissAllNotifications(notifications.map((n) => n.id))
   }
 
   return (
@@ -71,7 +79,7 @@ export function NotificationsDropdown({ anchorRef, open, onClose }: Notification
             </span>
           )}
         </div>
-        {unreadCount > 0 && (
+        {notifications.length > 0 && (
           <button
             type="button"
             onClick={handleMarkAllRead}
@@ -88,38 +96,14 @@ export function NotificationsDropdown({ anchorRef, open, onClose }: Notification
             Nenhuma notificação no momento.
           </p>
         ) : (
-          notifications.map((n) => {
-            const Icon = n.icon
-            return (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => handleClick(n.id, n.action?.path, n.action?.hash)}
-                className={`w-full flex gap-3 px-4 py-3 text-left hover:bg-neutral-900/60 transition-colors border-b border-neutral-800/60 last:border-0 ${
-                  n.unread ? 'bg-neutral-900/20' : ''
-                }`}
-              >
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${n.bg} ${n.color}`}
-                >
-                  <Icon size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                      {n.tag}
-                    </span>
-                    {n.unread && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-orange shrink-0" />
-                    )}
-                  </div>
-                  <p className="font-semibold text-sm leading-snug">{n.title}</p>
-                  <p className="text-neutral-400 text-xs leading-relaxed mt-0.5">{n.body}</p>
-                  <p className="text-neutral-600 text-[10px] mt-1">{n.time}</p>
-                </div>
-              </button>
-            )
-          })
+          notifications.map((n) => (
+            <NotificationRow
+              key={n.id}
+              notification={n}
+              onDismiss={handleDismiss}
+              onActivate={handleActivate}
+            />
+          ))
         )}
       </div>
     </HeaderDropdown>

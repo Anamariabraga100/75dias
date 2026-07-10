@@ -62,7 +62,7 @@ export function usePaywallCheckout(usePromoOffer: boolean) {
         ? await signUpWithEmail(email, password)
         : await signInWithEmail(email, password)
       if (!session) throw new EmailConfirmationRequiredError()
-      await establishAuthSession(session)
+      await establishAuthSession(session, { freshAccount: isSignup })
       setNeedsAuth(false)
       await redirectToCheckout(selectedPlan, usePromoOffer)
     } catch (e) {

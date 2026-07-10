@@ -1,11 +1,42 @@
 const { resolvePlanAmount } = require('./stripe-prices')
 
+function subscriptionPeriodFields(subscription) {
+  if (!subscription?.current_period_end) {
+    return {
+      subscription_period_end: null,
+      subscription_cancel_at_period_end: Boolean(subscription?.cancel_at_period_end),
+    }
+  }
+
+  return {
+    subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    subscription_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+  }
+}
+
+async function syncSubscriptionDetails(admin, subscription, userId) {
+  if (!subscription?.id) return
+
+  const update = {
+    ...subscriptionPeriodFields(subscription),
+    updated_at: new Date().toISOString(),
+  }
+
+  if (userId) {
+    await admin.from('profiles').update(update).eq('user_id', userId)
+    return
+  }
+
+  await admin.from('profiles').update(update).eq('stripe_subscription_id', subscription.id)
+}
+
 async function activateSubscription(admin, {
   userId,
   customerId,
   subscriptionId,
   plan,
   usePromo,
+  subscription,
 }) {
   await admin.from('profiles').upsert(
     {
@@ -17,16 +48,18 @@ async function activateSubscription(admin, {
       stripe_subscription_id: subscriptionId || null,
       selected_plan: plan,
       use_promo_offer: usePromo,
+      ...subscriptionPeriodFields(subscription),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
   )
 }
 
-async function setSubscriptionStatus(admin, subscriptionId, status, paymentComplete) {
+async function setSubscriptionStatus(admin, subscriptionId, status, paymentComplete, subscription) {
   const update = {
     subscription_status: status,
     updated_at: new Date().toISOString(),
+    ...subscriptionPeriodFields(subscription),
   }
   if (typeof paymentComplete === 'boolean') {
     update.payment_complete = paymentComplete
@@ -181,12 +214,19 @@ async function fulfillCheckoutSession(admin, session, options = {}) {
   const customerId =
     typeof session.customer === 'string' ? session.customer : session.customer?.id
 
+  let subscription = null
+  if (subscriptionId) {
+    const { getStripe } = require('./stripe')
+    subscription = await getStripe().subscriptions.retrieve(subscriptionId)
+  }
+
   await activateSubscription(admin, {
     userId,
     customerId,
     subscriptionId,
     plan,
     usePromo,
+    subscription,
   })
 
   const amountPaid = session.amount_total ? session.amount_total / 100 : undefined
@@ -209,6 +249,8 @@ module.exports = {
   activateSubscription,
   setSubscriptionStatus,
   setSubscriptionStatusByCustomer,
+  syncSubscriptionDetails,
+  subscriptionPeriodFields,
   recordPayment,
   recordFailedPayment,
   markPaymentRefunded,

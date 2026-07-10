@@ -11,16 +11,18 @@ import {
 } from '../../store/useAppStore'
 
 const ADVANCE_MS = 0
+const LAST_STEP: RoutineStepId = QUIZ_STEP_ORDER[QUIZ_STEP_ORDER.length - 1]
 
 function StepProgress({ current }: { current: RoutineStepId }) {
   const idx = QUIZ_STEP_ORDER.indexOf(current)
-  const funnelStep = 2 + idx + 1
+  const total = QUIZ_STEP_ORDER.length
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between gap-2 mb-2">
         <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-          Montando seu perfil · {funnelStep}/8
+          Pergunta {idx + 1} de {total}
         </p>
+        <p className="text-[10px] font-bold text-accent-blue/80">+{Math.round(((idx + 1) / total) * 10)} XP</p>
       </div>
       <div className="flex items-center gap-1 mb-2">
         {QUIZ_STEP_ORDER.map((step, i) => (
@@ -49,6 +51,15 @@ export function RoutineQuestionPage() {
     advancing.current = false
   }, [step])
 
+  useEffect(() => {
+    if (!config?.skipWhen) return
+    const current = routineAnswers[config.skipWhen.key]
+    if (current && config.skipWhen.values.includes(current as string)) {
+      if (stepNum === LAST_STEP) computeScores()
+      navigate(config.next)
+    }
+  }, [stepNum, config, routineAnswers, navigate, computeScores])
+
   if (!config) return null
 
   const question = config.questions[0]
@@ -63,7 +74,7 @@ export function RoutineQuestionPage() {
     }
 
     const goNext = () => {
-      if (stepNum === '6') computeScores()
+      if (stepNum === LAST_STEP) computeScores()
       navigate(config.next)
     }
 

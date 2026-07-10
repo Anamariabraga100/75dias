@@ -10,7 +10,6 @@ import type { ChallengeId } from '../store/useAppStore'
 import { CHALLENGES } from '../store/useAppStore'
 import { getDisplayDay, TOTAL_PROGRAM_DAYS } from './demoProgress'
 import { daysUntilNextPhoto, getPhotoDaysUpTo, isPhotoDay } from './photoSchedule'
-import { computeInvestedDays } from './streak'
 
 export type NotificationKind =
   | 'habits'
@@ -43,6 +42,7 @@ export interface NotificationState {
   mirrorPhotos: Record<number, string>
   taskChecksByDay: Record<number, Record<string, boolean>>
   readNotificationIds: string[]
+  dismissedNotificationIds: string[]
 }
 
 const MOTIVATION_LINES = [
@@ -75,6 +75,7 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
     mirrorPhotos,
     taskChecksByDay,
     readNotificationIds,
+    dismissedNotificationIds,
   } = state
 
   const displayDay = getDisplayDay(challengeAccepted, currentDay)
@@ -94,6 +95,9 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
       priority: 10,
       action: { path: '/app' },
     })
+    if (dismissedNotificationIds.includes('motivation-start')) {
+      return []
+    }
     return [
       {
         ...items[0],
@@ -196,14 +200,7 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
     }
   }
 
-  if (displayDay >= 2 || computeInvestedDays(challengeAccepted, challengeId, currentDay, taskChecksByDay, mirrorPhotos) > 0) {
-    const invested = computeInvestedDays(
-      challengeAccepted,
-      challengeId,
-      currentDay,
-      taskChecksByDay,
-      mirrorPhotos
-    )
+  if (displayDay >= 1 && challengeAccepted) {
     items.push({
       id: `streak-${displayDay}`,
       kind: 'streak',
@@ -211,14 +208,14 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
       color: 'text-accent-orange',
       bg: 'bg-accent-orange/10',
       tag: 'Sequência',
-      title: `${invested} dia${invested !== 1 ? 's' : ''} de investida`,
+      title: `${displayDay} dia${displayDay !== 1 ? 's' : ''} de investida`,
       body:
-        invested >= 7
-          ? 'Uma semana ou mais fechando o dia completo. Não quebre a corrente hoje.'
-          : invested === 0
-            ? 'Complete os hábitos de hoje para começar sua sequência.'
-            : 'Cada dia cumprido fortalece quem você está se tornando.',
-      time: invested >= 7 ? 'Marco' : 'Sequência',
+        displayDay >= 7
+          ? 'Uma semana ou mais no programa. Não quebre a corrente hoje.'
+          : displayDay === 1
+            ? 'Seu primeiro dia no Reset90. Complete os hábitos para avançar.'
+            : 'Cada dia no programa fortalece quem você está se tornando.',
+      time: displayDay >= 7 ? 'Marco' : 'Sequência',
       priority: 20,
       action: { path: '/app' },
     })
@@ -270,10 +267,12 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
 
   items.sort((a, b) => b.priority - a.priority)
 
-  return items.map((n) => ({
-    ...n,
-    unread: !isRead(n.id, readNotificationIds),
-  }))
+  return items
+    .filter((n) => !dismissedNotificationIds.includes(n.id))
+    .map((n) => ({
+      ...n,
+      unread: !isRead(n.id, readNotificationIds),
+    }))
 }
 
 export function countUnreadNotifications(state: NotificationState) {

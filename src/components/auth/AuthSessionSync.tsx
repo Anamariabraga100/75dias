@@ -50,7 +50,7 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       }
 
       if (event === 'SIGNED_OUT') {
-        useAppStore.getState().clearUserProfile()
+        useAppStore.getState().reset()
       }
     })
 

@@ -7,6 +7,7 @@ import { MoneyBackGuarantee } from '../../components/ui/MoneyBackGuarantee'
 import { useAppStore } from '../../store/useAppStore'
 import { PRICING } from '../../lib/pricing'
 import { usePaywallCheckout } from '../../lib/usePaywallCheckout'
+import { grantDevAccess, isDevBypassPayment } from '../../lib/devMode'
 
 const PAYWALL_HERO = '/niveis/pagamento.jpg'
 
@@ -22,6 +23,13 @@ export function PaywallPage() {
     }
     void checkout.startCheckout()
   }
+
+  const handleDevSkip = () => {
+    grantDevAccess()
+    navigate('/app', { replace: true })
+  }
+
+  const devMode = isDevBypassPayment()
 
   return (
     <div className="h-dvh max-h-dvh bg-black overflow-hidden">
@@ -57,6 +65,19 @@ export function PaywallPage() {
         </div>
 
         <div className="shrink-0 px-5 pt-4 space-y-3">
+          {devMode && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
+              <p className="text-amber-400 text-xs font-semibold mb-2">Modo dev — pagamento desligado</p>
+              <button
+                type="button"
+                onClick={handleDevSkip}
+                className="w-full py-2 rounded-lg text-sm font-bold text-amber-300 border border-amber-500/50 hover:bg-amber-500/15 transition-colors"
+              >
+                Entrar no app sem pagar
+              </button>
+            </div>
+          )}
+
           <div>
             <span className="inline-block bg-white/10 text-white text-[10px] font-medium px-2.5 py-0.5 rounded-full mb-2">
               Acesso completo · 90 dias

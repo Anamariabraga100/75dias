@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { Button } from './Button'
 import { BottomSheet, BottomSheetPanel } from './BottomSheet'
 import { LEVEL_META } from './ChallengeLevelCard'
+import { getChallengeRecommendation } from '../../lib/challengeRecommendation'
 import { CHALLENGES, type ChallengeId } from '../../store/useAppStore'
 
 interface ChallengePreviewModalProps {
@@ -17,6 +18,7 @@ export function ChallengePreviewModal({
 }: ChallengePreviewModalProps) {
   const challenge = CHALLENGES[challengeId]
   const meta = LEVEL_META[challengeId]
+  const ctaLabel = getChallengeRecommendation(challengeId).ctaLabel
 
   return (
     <BottomSheet onClose={onClose} className="bg-black/80">
@@ -48,10 +50,10 @@ export function ChallengePreviewModal({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <p className="text-neutral-400 text-xs uppercase tracking-wide mb-1">
-            Sua jornada
+            Sua jornada de 90 dias
           </p>
           <p className="text-neutral-500 text-sm mb-4">
-            Estes hábitos serão sua rotina diária pelos próximos 90 dias:
+            Mesma jornada para todos — a diferença está na intensidade dos hábitos diários:
           </p>
 
           <div className="space-y-2 mb-4">
@@ -98,14 +100,14 @@ export function ChallengePreviewModal({
                 : ''
             }`}
           >
-            {meta.ctaPreview}
+            {ctaLabel}
           </Button>
           <button
             type="button"
             onClick={onClose}
             className="w-full py-2.5 text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
           >
-            Ainda não
+            Escolher outro nível
           </button>
         </div>
       </BottomSheetPanel>

@@ -24,6 +24,7 @@ import {
 } from '../../lib/dayUnlock'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { PhotoCheckInSheet } from './PhotoCheckInSheet'
+import { DailyTipCard } from './DailyTipCard'
 
 type Task = (typeof CHALLENGES)[ChallengeId]['tasks'][number]
 
@@ -37,6 +38,18 @@ const TASK_COLORS: Record<string, string> = {
   alcohol: 'bg-rose-700',
   creatine: 'bg-cyan-600',
   photo: 'bg-teal-500',
+}
+
+const TASK_MISSION_TAGS: Record<string, { label: string; className: string; ring: string }> = {
+  diet: { label: '★ IMPORTANTE', className: 'text-accent-green', ring: 'border-lime-500' },
+  workout: { label: '🔥 ENERGIA', className: 'text-red-400', ring: 'border-red-500' },
+  read: { label: '★ MENTE', className: 'text-sky-400', ring: 'border-sky-400' },
+  sleep: { label: '☾ RECUPERAÇÃO', className: 'text-purple-400', ring: 'border-indigo-500' },
+  noporn: { label: '★ FOCO', className: 'text-violet-400', ring: 'border-violet-500' },
+  purity: { label: '★ FOCO', className: 'text-violet-400', ring: 'border-violet-500' },
+  alcohol: { label: '★ DISCIPLINA', className: 'text-rose-400', ring: 'border-rose-500' },
+  creatine: { label: '★ SAÚDE', className: 'text-cyan-400', ring: 'border-cyan-500' },
+  photo: { label: '📷 EVOLUÇÃO', className: 'text-teal-400', ring: 'border-teal-500' },
 }
 
 const MOTIVATION_MESSAGES = [
@@ -96,7 +109,13 @@ function TaskInfoModal({ task, onClose }: { task: Task; onClose: () => void }) {
   )
 }
 
-export function DailyTasksPanel() {
+export function DailyTasksPanel({
+  compact = false,
+  mission = false,
+}: {
+  compact?: boolean
+  mission?: boolean
+}) {
   const navigate = useNavigate()
   const {
     challengeId,
@@ -140,6 +159,7 @@ export function DailyTasksPanel() {
     100,
     Math.round((displayDay / TOTAL_PROGRAM_DAYS) * 100)
   )
+  const uiCompact = compact || mission
 
   const dayUnlock = getDayUnlockStatus({
     challengeAccepted,
@@ -169,7 +189,7 @@ export function DailyTasksPanel() {
   if (!challengeId || !challenge || !meta) return null
 
   const nextDaySection =
-    programDay < TOTAL_PROGRAM_DAYS ? (
+    !uiCompact && programDay < TOTAL_PROGRAM_DAYS ? (
       <div className="mt-4 pt-4 border-t border-white/10 text-left">
         {dayUnlock.canAdvance ? (
           <button
@@ -201,9 +221,9 @@ export function DailyTasksPanel() {
           </button>
         )}
         {isFastDayMode() && (
-          <p className="text-[10px] text-neutral-600 text-center mt-1">
-            Dev: {isFastDayMode() ? '1 min' : '24h'} após concluir o dia
-          </p>
+            <p className="text-[10px] text-neutral-600 text-center mt-1">
+              Dev: {import.meta.env.DEV ? '10s' : '1 min'} após concluir o dia · ou force abaixo
+            </p>
         )}
       </div>
     ) : null
@@ -262,11 +282,89 @@ export function DailyTasksPanel() {
     <div className="space-y-2.5">
       {challenge.tasks.map((task) => {
         const colorClass = TASK_COLORS[task.id] ?? 'bg-neutral-600'
+        const missionTag = TASK_MISSION_TAGS[task.id]
         const done =
           task.type === 'check'
             ? tasks[task.id]
             : task.id === 'photo' && Boolean(mirrorPhotos[programDay])
         const photoDue = task.id === 'photo' && isPhotoDay(programDay)
+
+        if (mission) {
+          return (
+            <div
+              key={task.id}
+              className={`rounded-2xl border bg-[#111111] overflow-hidden flex transition-colors ${
+                done ? 'border-accent-green/25' : 'border-neutral-800/80'
+              }`}
+            >
+              <div className={`w-14 flex items-center justify-center shrink-0 ${colorClass}`}>
+                <span className="text-2xl">{task.icon}</span>
+              </div>
+              <div className="flex-1 py-3 pr-3 pl-3 flex items-start justify-between gap-2 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    <p
+                      className={`font-bold text-sm ${
+                        done ? 'text-neutral-500 line-through' : 'text-white'
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setInfoTask(task)}
+                      className="w-5 h-5 rounded-full bg-neutral-800 flex items-center justify-center shrink-0 hover:bg-neutral-700 transition-colors"
+                      aria-label={`Info sobre ${task.title}`}
+                    >
+                      <Info size={11} className="text-neutral-500" />
+                    </button>
+                  </div>
+                  <p
+                    className={`text-xs leading-relaxed ${
+                      done ? 'text-neutral-600 line-through' : 'text-neutral-500'
+                    }`}
+                  >
+                    {task.previewHint}
+                  </p>
+                  {missionTag && (
+                    <p className={`text-[9px] font-bold mt-1.5 ${missionTag.className}`}>
+                      {missionTag.label}
+                    </p>
+                  )}
+                </div>
+                {task.type === 'check' && (
+                  <button
+                    type="button"
+                    onClick={() => toggleCheck(task.id)}
+                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
+                      done
+                        ? 'bg-accent-green border-accent-green'
+                        : `${missionTag?.ring ?? 'border-neutral-600'} bg-transparent`
+                    }`}
+                  >
+                    {done && <Check size={16} className="text-black" />}
+                  </button>
+                )}
+                {task.type === 'action' && task.id === 'photo' && (
+                  <button
+                    type="button"
+                    onClick={() => photoDue && !done && setShowPhotoCheckIn(true)}
+                    disabled={!photoDue || done}
+                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
+                      done
+                        ? 'bg-accent-green border-accent-green'
+                        : photoDue
+                          ? 'border-teal-500 text-teal-500'
+                          : 'border-neutral-700 text-neutral-600 opacity-50'
+                    }`}
+                  >
+                    {done ? <Check size={16} className="text-black" /> : <Camera size={16} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        }
 
         return (
           <div
@@ -356,43 +454,104 @@ export function DailyTasksPanel() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="text-neutral-500 text-xs uppercase tracking-wide">Hoje</p>
-          <h2 className="text-lg font-bold">
-            Dia {programDay} · {meta.label}
+      {!uiCompact && (
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-neutral-500 text-xs uppercase tracking-wide">Hoje</p>
+            <h2 className="text-lg font-bold">
+              Dia {programDay} · {meta.label}
+            </h2>
+          </div>
+          {checkTotal > 0 && !allDone && (
+            <div className="text-sm font-bold px-3 py-1 rounded-full bg-surface text-neutral-400">
+              {completedCount}/{checkTotal}
+            </div>
+          )}
+          {allDone && (
+            <div className="text-sm font-bold px-3 py-1 rounded-full bg-accent-green/20 text-accent-green">
+              ✓ Completo
+            </div>
+          )}
+        </div>
+      )}
+
+      {mission && !allDone && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+            Hoje · Dia {programDay}
+          </h2>
+          <span className="text-sm font-bold text-neutral-500 tabular-nums">
+            {completedCount}/{checkTotal}
+          </span>
+        </div>
+      )}
+
+      {uiCompact && !mission && allDone && !showCompletedDetails && (
+        <div className="mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+            Dica e resumo
           </h2>
         </div>
-        {checkTotal > 0 && !allDone && (
-          <div className="text-sm font-bold px-3 py-1 rounded-full bg-surface text-neutral-400">
-            {completedCount}/{checkTotal}
+      )}
+
+      {uiCompact && !mission && !allDone && (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+              Hábitos de hoje
+            </h2>
+            <p className="text-sm font-semibold text-white mt-1">
+              Dia {programDay} · {meta.label}
+            </p>
           </div>
-        )}
-        {allDone && (
-          <div className="text-sm font-bold px-3 py-1 rounded-full bg-accent-green/20 text-accent-green">
-            ✓ Completo
-          </div>
-        )}
-      </div>
+          {checkTotal > 0 && (
+            <div className="text-sm font-bold px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 border border-neutral-800">
+              {completedCount}/{checkTotal}
+            </div>
+          )}
+        </div>
+      )}
 
       {allDone && !showCompletedDetails ? (
-        <div className="bg-gradient-to-br from-accent-green/15 to-emerald-950/20 border border-accent-green/30 rounded-2xl p-5 text-center">
-          <div className="w-14 h-14 rounded-full bg-accent-green/20 flex items-center justify-center mx-auto mb-3">
-            <Check size={28} className="text-accent-green" />
-          </div>
-          <p className="font-bold text-lg text-white mb-2">Dia completo!</p>
-          <p className="text-neutral-400 text-sm leading-relaxed mb-4">{motivation}</p>
-          {nextDaySection}
-          {progressSummary}
+        <div
+          className={`${
+            mission
+              ? 'space-y-4'
+              : uiCompact
+                ? 'rounded-2xl border border-neutral-800/80 bg-[#111111] p-4'
+                : 'bg-gradient-to-br from-accent-green/15 to-emerald-950/20 border border-accent-green/30 rounded-2xl p-5 text-center'
+          }`}
+        >
+          {!uiCompact && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-accent-green/20 flex items-center justify-center mx-auto mb-3">
+                <Check size={28} className="text-accent-green" />
+              </div>
+              <p className="font-bold text-lg text-white mb-2">Dia completo!</p>
+              <p className="text-neutral-400 text-sm leading-relaxed mb-4">{motivation}</p>
+            </>
+          )}
+          {uiCompact && !mission && (
+            <p className="text-neutral-400 text-sm leading-relaxed mb-4">{motivation}</p>
+          )}
+          {!mission && (
+            <div className="mb-4">
+              <DailyTipCard day={displayDay} />
+            </div>
+          )}
+          {!uiCompact && nextDaySection}
+          {!uiCompact && progressSummary}
           <button
             type="button"
             onClick={() => setShowCompletedDetails(true)}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-green hover:text-accent-green/80 transition-colors mb-4"
+            className={`inline-flex items-center gap-1.5 text-sm font-semibold text-accent-green hover:text-accent-green/80 transition-colors ${
+              mission ? '' : uiCompact ? '' : 'mb-4'
+            }`}
           >
             Ver o que cumpri hoje
             <ChevronDown size={16} />
           </button>
-          {progressLinks}
+          {!uiCompact && progressLinks}
         </div>
       ) : (
         <>
@@ -411,12 +570,19 @@ export function DailyTasksPanel() {
               </button>
             </div>
           )}
-          {renderTasks()}
-          {allDone && (
-            <div className="mt-4 pt-4 border-t border-neutral-800 space-y-3">
-              {nextDaySection}
-              {progressSummary}
-              {progressLinks}
+          {uiCompact && !mission && !allDone ? (
+            <div className="rounded-2xl border border-neutral-800/80 bg-[#111111] p-1">
+              {renderTasks()}
+            </div>
+          ) : (
+            renderTasks()
+          )}
+          {allDone && !mission && (
+            <div className={`${uiCompact ? 'mt-4' : 'mt-4 pt-4 border-t border-neutral-800'} space-y-3`}>
+              {!uiCompact && <DailyTipCard day={displayDay} />}
+              {!uiCompact && nextDaySection}
+              {!uiCompact && progressSummary}
+              {!uiCompact && progressLinks}
             </div>
           )}
         </>

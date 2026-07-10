@@ -1,13 +1,16 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { UserAvatar } from '../ui/UserAvatar'
 import { formatPreferredName } from '../../lib/displayName'
 import { useAppStore } from '../../store/useAppStore'
-import { getPlanDisplayLabel } from '../../lib/pricing'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
 import { signOut } from '../../lib/auth'
 import { isFastDayMode } from '../../lib/dayUnlock'
 import { normalizeProgramDay, TOTAL_PROGRAM_DAYS } from '../../lib/demoProgress'
+import { SubscriptionPlanCard } from './SubscriptionPlanCard'
+import { refreshSubscriptionStatus } from '../../lib/subscriptionSync'
+import { hasActiveAccess } from '../../lib/subscription'
 
 interface SettingsSheetProps {
   onClose: () => void
@@ -21,17 +24,22 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
     avatarUrl,
     challengeId,
     challengeAccepted,
-    selectedPlan,
-    usePromoOffer,
+    paymentComplete,
+    subscriptionStatus,
     currentDay,
     advanceProgramDay,
   } = useAppStore()
 
   const displayName = formatPreferredName(name)
-  const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
   const levelLabel = challengeId ? LEVEL_META[challengeId].label : 'Nenhum'
   const programDay = normalizeProgramDay(currentDay)
   const devMode = isFastDayMode()
+  const hasSubscription = hasActiveAccess(subscriptionStatus, paymentComplete)
+
+  useEffect(() => {
+    if (!hasSubscription) return
+    void refreshSubscriptionStatus()
+  }, [hasSubscription])
 
   const handleSignOut = async () => {
     onClose()
@@ -52,11 +60,13 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
           </div>
         </div>
 
-        <dl className="space-y-3 mb-6 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-app-muted">Plano</dt>
-            <dd className="font-medium text-app-fg text-right">{planLabel}</dd>
+        {hasSubscription && (
+          <div className="mb-5">
+            <SubscriptionPlanCard />
           </div>
+        )}
+
+        <dl className="space-y-3 mb-6 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-app-muted">Desafio</dt>
             <dd className="font-medium text-app-fg text-right">
@@ -71,8 +81,8 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
               Modo teste
             </p>
             <p className="text-app-muted text-xs mb-3 leading-relaxed">
-              Dias liberam em 1 min após concluir (em vez de 24h). Use o botão abaixo para pular
-              sem esperar.
+              Dias liberam em 10s após concluir (localhost). Use o botão abaixo para pular sem
+              esperar.
             </p>
             <button
               type="button"

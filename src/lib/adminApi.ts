@@ -17,6 +17,7 @@ export type AdminProfile = {
   current_day: number
   invested_days: number
   photos_count: number
+  total_xp: number
   created_at: string
   updated_at: string
   last_seen_at: string
@@ -138,4 +139,52 @@ export async function fetchPayments(): Promise<AdminPayment[]> {
 export async function fetchStripeEvents(): Promise<AdminStripeEvent[]> {
   if (!isAdminSession()) throw new Error('Sessão admin expirada.')
   return adminFetch<AdminStripeEvent[]>('events')
+}
+
+export type AdminLeaderboardProfile = Pick<
+  AdminProfile,
+  | 'user_id'
+  | 'email'
+  | 'name'
+  | 'avatar_url'
+  | 'challenge_id'
+  | 'challenge_accepted'
+  | 'current_day'
+  | 'invested_days'
+  | 'photos_count'
+  | 'total_xp'
+  | 'last_seen_at'
+>
+
+export type AdminProgressPhoto = {
+  id: string
+  user_id: string
+  day: number
+  photo_url: string
+  created_at: string
+  name: string | null
+  email: string | null
+  avatar_url?: string | null
+}
+
+export type AdminEngagementData = {
+  topInvested: AdminLeaderboardProfile[]
+  topXp: AdminLeaderboardProfile[]
+  topPhotos: AdminLeaderboardProfile[]
+  recentPhotos: AdminProgressPhoto[]
+}
+
+export type AdminUserPhotosData = {
+  profile: AdminLeaderboardProfile | null
+  photos: Omit<AdminProgressPhoto, 'name' | 'email' | 'avatar_url'>[]
+}
+
+export async function fetchEngagementLeaderboard(): Promise<AdminEngagementData> {
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
+  return adminFetch<AdminEngagementData>('engagement')
+}
+
+export async function fetchUserPhotos(userId: string): Promise<AdminUserPhotosData> {
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
+  return adminFetch<AdminUserPhotosData>(`photos?user_id=${encodeURIComponent(userId)}`)
 }

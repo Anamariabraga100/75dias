@@ -8,37 +8,36 @@ const STEPS = [
   'Analisando suas respostas',
   'Definindo metas de disciplina',
   'Criando hábitos diários',
-  'Montando sistema de accountability',
+  'Montando seu plano de 90 dias',
 ]
 
 const TESTIMONIALS = [
   {
     user: 'Mariana',
-    emoji: '✨',
+    emoji: '🟢',
     stars: 5,
-    text: 'Mudou minha vida. Finalmente tenho uma rotina de verdade — me incentivou a ser consistente nos treinos e na leitura.',
+    text: 'Acabei de começar o Desafio Desafiante. No dia 3 já senti que a rotina está mais clara.',
   },
   {
     user: 'Pedro',
-    emoji: '💪',
+    emoji: '🔵',
     stars: 5,
-    text: 'Completei os 90 dias no Implacável! Alguns hábitos ficaram permanentes. Perfeito para quem precisa de estrutura.',
+    text: 'Entrei no Desafio Dominante ontem. O app deixa tudo bem direto — sem enrolação.',
   },
   {
     user: 'Lucas',
     emoji: '🔥',
     stars: 5,
-    text: 'O app me forçou a ser honesto comigo mesmo. Em 30 dias já senti diferença na energia e no foco.',
+    text: 'Comecei o Desafio Implacável hoje. Difícil, mas é exatamente o que eu precisava.',
   },
   {
     user: 'Ana',
     emoji: '🌱',
     stars: 5,
-    text: 'Comecei no Iniciante e subi de nível. A gamificação me manteve firme nos dias difíceis.',
+    text: 'Dia 1 no Desafio Dominante. Já marquei minhas missões e estou animada com os 90 dias.',
   },
 ]
 
-/** ~8,5 s até 100% (antes ~4 s) */
 const PROGRESS_TICK_MS = 85
 const PROGRESS_STEP = 1
 
@@ -62,7 +61,7 @@ function TestimonialFeed() {
   return (
     <div className="w-full mt-auto pt-6">
       <p className="text-neutral-500 text-xs text-center mb-3 uppercase tracking-wide">
-        Quem já fez o Reset90
+        Quem está começando agora
       </p>
 
       <div

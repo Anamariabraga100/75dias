@@ -1,9 +1,12 @@
+import { isDevBypassPayment } from './devMode'
+
 export type SubscriptionStatus = 'inactive' | 'active' | 'canceled' | 'past_due' | 'paused'
 
 export function hasActiveAccess(
   subscriptionStatus: SubscriptionStatus | null | undefined,
   paymentComplete: boolean
 ): boolean {
+  if (isDevBypassPayment()) return true
   if (subscriptionStatus === 'active') return true
   if (subscriptionStatus === 'paused' || subscriptionStatus === 'past_due' || subscriptionStatus === 'canceled') {
     return false

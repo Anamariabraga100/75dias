@@ -32,6 +32,7 @@ export function AdminSubscribersPage() {
   const totals = useMemo(
     () => ({
       invested: filtered.reduce((s, r) => s + r.invested_days, 0),
+      xp: filtered.reduce((s, r) => s + r.total_xp, 0),
       photos: filtered.reduce((s, r) => s + r.photos_count, 0),
       active: filtered.filter((r) => r.challenge_accepted).length,
     }),
@@ -59,14 +60,18 @@ export function AdminSubscribersPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 text-center">
           <p className="text-[10px] text-neutral-500 uppercase">Assinantes</p>
           <p className="text-xl font-black tabular-nums">{filtered.length}</p>
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 text-center">
-          <p className="text-[10px] text-neutral-500 uppercase">Dias investidos (soma)</p>
+          <p className="text-[10px] text-neutral-500 uppercase">Dias investidos</p>
           <p className="text-xl font-black tabular-nums">{totals.invested}</p>
+        </div>
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 text-center">
+          <p className="text-[10px] text-neutral-500 uppercase">XP total</p>
+          <p className="text-xl font-black tabular-nums text-amber-400">{totals.xp.toLocaleString('pt-BR')}</p>
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 text-center">
           <p className="text-[10px] text-neutral-500 uppercase">Fotos enviadas</p>
@@ -96,6 +101,7 @@ export function AdminSubscribersPage() {
                   <th className="px-4 py-3 font-medium">Desafio</th>
                   <th className="px-4 py-3 font-medium">Dia</th>
                   <th className="px-4 py-3 font-medium">Investida</th>
+                  <th className="px-4 py-3 font-medium">XP</th>
                   <th className="px-4 py-3 font-medium">Fotos</th>
                   <th className="px-4 py-3 font-medium">Último acesso</th>
                 </tr>
@@ -136,6 +142,9 @@ export function AdminSubscribersPage() {
                       <td className="px-4 py-3 tabular-nums">
                         <span className="font-bold text-accent-orange">{r.invested_days}</span>
                         <span className="text-neutral-600 text-xs"> dias</span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums font-bold text-amber-400">
+                        {r.total_xp.toLocaleString('pt-BR')}
                       </td>
                       <td className="px-4 py-3 tabular-nums font-medium">{r.photos_count}</td>
                       <td className="px-4 py-3 text-neutral-500 text-xs whitespace-nowrap">

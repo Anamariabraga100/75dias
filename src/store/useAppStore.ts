@@ -6,6 +6,14 @@ import type { SubscriptionStatus } from '../lib/subscription'
 import { normalizeProgramDay } from '../lib/demoProgress'
 import { getDayUnlockStatus } from '../lib/dayUnlock'
 import { isDayComplete } from '../lib/streak'
+import {
+  awardDayXp,
+  awardHabitXp,
+  awardScienceXp,
+  awardTierUnlockXp,
+  reconcileXpFromProgress,
+} from '../lib/xp'
+import { DISCIPLINE_SHIELD_COST, MAX_DISCIPLINE_SHIELDS, canApplyShield } from '../lib/rewards'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -29,6 +37,9 @@ export type ExerciseFrequency = 'never' | '1_2_week' | '3_4_week' | 'daily'
 export type ScreenTime = 'low' | 'moderate' | 'high' | 'very_high'
 export type RoutineConsistency = 'chaotic' | 'somewhat' | 'mostly' | 'structured'
 export type MealHabits = 'skip_meals' | 'irregular' | 'somewhat' | 'regular'
+
+export type PornographyUse = 'never' | 'rarely' | 'monthly' | 'weekly'
+export type AlcoholUse = 'never' | 'social' | 'weekly' | 'frequent'
 
 export type WorkSituation =
   | 'student'
@@ -67,6 +78,8 @@ export interface RoutineAnswers {
   screenTime: ScreenTime | null
   routineConsistency: RoutineConsistency | null
   mealHabits: MealHabits | null
+  pornographyUse: PornographyUse | null
+  alcoholUse: AlcoholUse | null
 }
 
 export interface ProfileInsights {
@@ -79,6 +92,7 @@ export interface ProfileInsights {
   dayMessages: { day1: string; day30: string; day90: string }
   blueprintText: string
   priorityActions: string[]
+  recommendationWhy: [string, string]
 }
 
 export interface RadarScores {
@@ -116,11 +130,21 @@ interface AppState {
   onboardingComplete: boolean
   paymentComplete: boolean
   subscriptionStatus: SubscriptionStatus | null
+  subscriptionPeriodEnd: string | null
+  subscriptionCancelAtPeriodEnd: boolean
   pixViewed: boolean
   usePromoOffer: boolean
   mirrorPhotos: Record<number, string>
   taskChecksByDay: Record<number, Record<string, boolean>>
   readNotificationIds: string[]
+  dismissedNotificationIds: string[]
+  seenTierUnlockModals: string[]
+  readScienceCardIds: string[]
+  totalXp: number
+  xpAwardedKeys: string[]
+  disciplineShields: number
+  shieldedDays: number[]
+  lastShieldUsedDay: number | null
   authUserId: string | null
 
   setName: (name: string) => void
@@ -137,6 +161,11 @@ interface AppState {
   setSelectedPlan: (plan: PlanType) => void
   setChallengeId: (id: ChallengeId) => void
   acceptChallenge: (id: ChallengeId) => void
+  evolveToTier: (id: ChallengeId) => void
+  markTierUnlockSeen: (key: string) => void
+  markScienceCardRead: (cardId: string) => void
+  purchaseDisciplineShield: () => boolean
+  applyDisciplineShield: (day: number) => boolean
   quitChallenge: () => void
   setStartDate: (option: StartDateOption, customDate?: string) => void
   completeOnboarding: () => void
@@ -152,6 +181,8 @@ interface AppState {
   toggleTaskCheck: (day: number, taskId: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: (ids: string[]) => void
+  dismissNotification: (id: string) => void
+  dismissAllNotifications: (ids: string[]) => void
   resetProgressForNewAccount: (userId: string) => void
   reset: () => void
 }
@@ -169,6 +200,8 @@ const emptyRoutineAnswers: RoutineAnswers = {
   screenTime: null,
   routineConsistency: null,
   mealHabits: null,
+  pornographyUse: null,
+  alcoholUse: null,
 }
 
 const defaultRadarScores: RadarScores = {
@@ -205,11 +238,21 @@ const initialState = {
   onboardingComplete: false,
   paymentComplete: false,
   subscriptionStatus: null as SubscriptionStatus | null,
+  subscriptionPeriodEnd: null as string | null,
+  subscriptionCancelAtPeriodEnd: false,
   pixViewed: false,
   usePromoOffer: false,
   mirrorPhotos: {} as Record<number, string>,
   taskChecksByDay: {} as Record<number, Record<string, boolean>>,
   readNotificationIds: [] as string[],
+  dismissedNotificationIds: [] as string[],
+  seenTierUnlockModals: [] as string[],
+  readScienceCardIds: [] as string[],
+  totalXp: 0,
+  xpAwardedKeys: [] as string[],
+  disciplineShields: 0,
+  shieldedDays: [] as number[],
+  lastShieldUsedDay: null as number | null,
   authUserId: null as string | null,
 }
 
@@ -253,6 +296,7 @@ export const useAppStore = create<AppState>()(
           recommendedChallenge: result.recommendedChallenge,
           profileInsights: result.insights,
         })
+        scheduleProfileSync()
       },
       setSigned: (signed) => set({ signed }),
       setSelectedPlan: (plan) => set({ selectedPlan: plan }),
@@ -267,8 +311,83 @@ export const useAppStore = create<AppState>()(
           programDayStartedAt: now,
           mirrorPhotos: {},
           taskChecksByDay: {},
+          seenTierUnlockModals: [],
+          readScienceCardIds: [],
+          xpAwardedKeys: [],
+          shieldedDays: [],
+          lastShieldUsedDay: null,
         })
         scheduleProfileSync()
+      },
+      evolveToTier: (id) => {
+        set({ challengeId: id })
+        scheduleProfileSync()
+      },
+      markTierUnlockSeen: (key) => {
+        const seen = get().seenTierUnlockModals
+        if (seen.includes(key)) return
+        set({ seenTierUnlockModals: [...seen, key] })
+      },
+      markScienceCardRead: (cardId) => {
+        const state = get()
+        if (state.readScienceCardIds.includes(cardId)) return
+        const { totalXp, xpAwardedKeys } = awardScienceXp(
+          state.totalXp,
+          state.xpAwardedKeys,
+          cardId
+        )
+        set({
+          readScienceCardIds: [...state.readScienceCardIds, cardId],
+          totalXp,
+          xpAwardedKeys,
+        })
+        scheduleProfileSync()
+      },
+      purchaseDisciplineShield: () => {
+        const state = get()
+        if (state.disciplineShields >= MAX_DISCIPLINE_SHIELDS) return false
+        if (state.totalXp < DISCIPLINE_SHIELD_COST) return false
+
+        set({
+          totalXp: state.totalXp - DISCIPLINE_SHIELD_COST,
+          disciplineShields: state.disciplineShields + 1,
+        })
+        scheduleProfileSync()
+        return true
+      },
+      applyDisciplineShield: (day) => {
+        const state = get()
+        if (!state.challengeId) return false
+        if (
+          isDayComplete(
+            state.challengeId,
+            day,
+            state.taskChecksByDay,
+            state.mirrorPhotos,
+            state.shieldedDays
+          )
+        ) {
+          return false
+        }
+        if (
+          !canApplyShield(
+            day,
+            state.shieldedDays,
+            state.lastShieldUsedDay,
+            state.disciplineShields
+          )
+        ) {
+          return false
+        }
+
+        set({
+          disciplineShields: state.disciplineShields - 1,
+          shieldedDays: [...state.shieldedDays, day],
+          lastShieldUsedDay: day,
+          dayCompletedAt: state.dayCompletedAt ?? new Date().toISOString(),
+        })
+        scheduleProfileSync()
+        return true
       },
       quitChallenge: () => {
         set({
@@ -279,6 +398,11 @@ export const useAppStore = create<AppState>()(
           programDayStartedAt: null,
           mirrorPhotos: {},
           taskChecksByDay: {},
+          seenTierUnlockModals: [],
+          readScienceCardIds: [],
+          xpAwardedKeys: [],
+          shieldedDays: [],
+          lastShieldUsedDay: null,
         })
         scheduleProfileSync()
       },
@@ -335,7 +459,8 @@ export const useAppStore = create<AppState>()(
             state.challengeId,
             programDay,
             state.taskChecksByDay,
-            state.mirrorPhotos
+            state.mirrorPhotos,
+            state.shieldedDays
           )
         ) {
           return
@@ -343,7 +468,34 @@ export const useAppStore = create<AppState>()(
 
         if (state.dayCompletedAt) return
 
-        set({ dayCompletedAt: new Date().toISOString() })
+        const { totalXp, xpAwardedKeys } = awardDayXp(
+          state.totalXp,
+          state.xpAwardedKeys,
+          programDay,
+          state.challengeId,
+          state.taskChecksByDay,
+          state.mirrorPhotos,
+          state.shieldedDays
+        )
+
+        let nextXp = totalXp
+        let nextKeys = xpAwardedKeys
+        if (programDay === 30) {
+          const tier = awardTierUnlockXp(nextXp, nextKeys, 'intermediario')
+          nextXp = tier.totalXp
+          nextKeys = tier.xpAwardedKeys
+        }
+        if (programDay === 60) {
+          const tier = awardTierUnlockXp(nextXp, nextKeys, 'implacavel')
+          nextXp = tier.totalXp
+          nextKeys = tier.xpAwardedKeys
+        }
+
+        set({
+          dayCompletedAt: new Date().toISOString(),
+          totalXp: nextXp,
+          xpAwardedKeys: nextKeys,
+        })
         scheduleProfileSync()
       },
       advanceProgramDay: (force = false) => {
@@ -360,6 +512,7 @@ export const useAppStore = create<AppState>()(
           taskChecksByDay: state.taskChecksByDay,
           mirrorPhotos: state.mirrorPhotos,
           dayCompletedAt: state.dayCompletedAt,
+          shieldedDays: state.shieldedDays,
         })
 
         if (!force && !unlock.canAdvance) return false
@@ -386,9 +539,23 @@ export const useAppStore = create<AppState>()(
           challengeId &&
           normalizeProgramDay(state.currentDay) === day &&
           dayCompletedAt &&
-          !isDayComplete(challengeId, day, { ...byDay, [day]: updatedDayChecks }, state.mirrorPhotos)
+          !isDayComplete(
+            challengeId,
+            day,
+            { ...byDay, [day]: updatedDayChecks },
+            state.mirrorPhotos,
+            state.shieldedDays
+          )
         ) {
           dayCompletedAt = null
+        }
+
+        let totalXp = state.totalXp
+        let xpAwardedKeys = state.xpAwardedKeys
+        if (next && challengeId) {
+          const habitAward = awardHabitXp(totalXp, xpAwardedKeys, day, taskId)
+          totalXp = habitAward.totalXp
+          xpAwardedKeys = habitAward.xpAwardedKeys
         }
 
         set({
@@ -397,6 +564,8 @@ export const useAppStore = create<AppState>()(
             [day]: updatedDayChecks,
           },
           dayCompletedAt,
+          totalXp,
+          xpAwardedKeys,
         })
         if (next) {
           if (!challengeId) return
@@ -421,8 +590,25 @@ export const useAppStore = create<AppState>()(
         set({ readNotificationIds: [...read, id] })
       },
       markAllNotificationsRead: (ids) => {
+        get().dismissAllNotifications(ids)
+      },
+      dismissNotification: (id) => {
+        const dismissed = get().dismissedNotificationIds
+        const read = get().readNotificationIds
+        const nextDismissed = dismissed.includes(id) ? dismissed : [...dismissed, id]
+        const nextRead = read.includes(id) ? read : [...read, id]
+        set({
+          dismissedNotificationIds: nextDismissed,
+          readNotificationIds: nextRead,
+        })
+      },
+      dismissAllNotifications: (ids) => {
+        const dismissed = new Set([...get().dismissedNotificationIds, ...ids])
         const read = new Set([...get().readNotificationIds, ...ids])
-        set({ readNotificationIds: [...read] })
+        set({
+          dismissedNotificationIds: [...dismissed],
+          readNotificationIds: [...read],
+        })
       },
       resetProgressForNewAccount: (userId) =>
         set((state) => ({
@@ -439,22 +625,44 @@ export const useAppStore = create<AppState>()(
       merge: (persisted, current) => {
         const saved = persisted as Partial<AppState> | undefined
         if (!saved) return current
-        return {
+        const merged = {
           ...current,
           ...saved,
           currentDay:
             typeof saved.currentDay === 'number' && saved.currentDay >= 1
               ? Math.min(90, saved.currentDay)
               : 1,
+          totalXp: typeof saved.totalXp === 'number' ? saved.totalXp : 0,
+          xpAwardedKeys: Array.isArray(saved.xpAwardedKeys) ? saved.xpAwardedKeys : [],
+          disciplineShields:
+            typeof saved.disciplineShields === 'number' ? saved.disciplineShields : 0,
+          shieldedDays: Array.isArray(saved.shieldedDays) ? saved.shieldedDays : [],
+          readScienceCardIds: Array.isArray(saved.readScienceCardIds) ? saved.readScienceCardIds : [],
+          lastShieldUsedDay:
+            typeof saved.lastShieldUsedDay === 'number' ? saved.lastShieldUsedDay : null,
         }
+        const reconciled = reconcileXpFromProgress(merged)
+        return { ...merged, ...reconciled }
       },
     }
   )
 )
 
-export type RoutineStepId = '1' | '2' | '3' | '4' | '5' | '6'
+export type RoutineStepId = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11'
 
-export const QUIZ_STEP_ORDER: RoutineStepId[] = ['1', '2', '3', '4', '5', '6']
+export const QUIZ_STEP_ORDER: RoutineStepId[] = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+]
 
 export const ROUTINE_STEPS: Record<
   RoutineStepId,
@@ -465,9 +673,10 @@ export const ROUTINE_STEPS: Record<
       key: keyof RoutineAnswers
       label: string
       emoji: string
-      skipWhen?: { key: keyof RoutineAnswers; value: string }
+      skipWhen?: { key: keyof RoutineAnswers; values: string[] }
       options: { value: string; label: string; emoji: string }[]
     }[]
+    skipWhen?: { key: keyof RoutineAnswers; values: string[] }
     next: string
   }
 > = {
@@ -528,6 +737,24 @@ export const ROUTINE_STEPS: Record<
     next: '/onboarding/quiz/4',
   },
   '4': {
+    title: '⚡ Quão puxado está seu dia?',
+    subtitle: 'Trabalho, estudo e responsabilidades',
+    questions: [
+      {
+        key: 'workLoad',
+        label: 'Carga do dia',
+        emoji: '⚡',
+        options: [
+          { value: 'light', label: 'Leve — sobra tempo', emoji: '🌤️' },
+          { value: 'moderate', label: 'Normal — dá pra organizar', emoji: '⚖️' },
+          { value: 'heavy', label: 'Pesado — quase sem folga', emoji: '😮‍💨' },
+          { value: 'overwhelming', label: 'Sobrecarregado', emoji: '🆘' },
+        ],
+      },
+    ],
+    next: '/onboarding/quiz/5',
+  },
+  '5': {
     title: '🏋️ Com que frequência você treina?',
     subtitle: 'Toque na sua resposta',
     questions: [
@@ -543,9 +770,9 @@ export const ROUTINE_STEPS: Record<
         ],
       },
     ],
-    next: '/onboarding/quiz/5',
+    next: '/onboarding/quiz/6',
   },
-  '5': {
+  '6': {
     title: '🥗 Como você come no dia a dia?',
     subtitle: 'Toque na sua resposta',
     questions: [
@@ -561,11 +788,11 @@ export const ROUTINE_STEPS: Record<
         ],
       },
     ],
-    next: '/onboarding/quiz/6',
+    next: '/onboarding/quiz/7',
   },
-  '6': {
-    title: '🎮 No lazer, quanto tempo no celular?',
-    subtitle: 'Última pergunta',
+  '7': {
+    title: '📱 Quanto tempo no celular fora do trabalho?',
+    subtitle: 'Fora do trabalho e estudo',
     questions: [
       {
         key: 'screenTime',
@@ -576,6 +803,78 @@ export const ROUTINE_STEPS: Record<
           { value: 'moderate', label: '2 a 4h', emoji: '📲' },
           { value: 'high', label: '4 a 6h', emoji: '😬' },
           { value: 'very_high', label: 'Mais de 6h', emoji: '📵' },
+        ],
+      },
+    ],
+    next: '/onboarding/quiz/8',
+  },
+  '8': {
+    title: '📅 Como é sua rotina hoje?',
+    subtitle: 'Nos últimos 30 dias',
+    questions: [
+      {
+        key: 'routineConsistency',
+        label: 'Rotina',
+        emoji: '📅',
+        options: [
+          { value: 'chaotic', label: 'Cada dia é um caos', emoji: '🌪️' },
+          { value: 'somewhat', label: 'Mais ou menos', emoji: '🎲' },
+          { value: 'mostly', label: 'Bem organizada', emoji: '📋' },
+          { value: 'structured', label: 'Tudo no horário', emoji: '⏰' },
+        ],
+      },
+    ],
+    next: '/onboarding/quiz/9',
+  },
+  '9': {
+    title: '🔞 Você assiste pornografia?',
+    subtitle: 'Resposta honesta — só você vê isso',
+    questions: [
+      {
+        key: 'pornographyUse',
+        label: 'Pornografia',
+        emoji: '🔞',
+        options: [
+          { value: 'never', label: 'Não assisto', emoji: '✅' },
+          { value: 'rarely', label: 'Raramente', emoji: '🙂' },
+          { value: 'monthly', label: 'Algumas vezes no mês', emoji: '😐' },
+          { value: 'weekly', label: 'Toda semana ou mais', emoji: '⚠️' },
+        ],
+      },
+    ],
+    next: '/onboarding/quiz/10',
+  },
+  '10': {
+    title: '🍺 Você bebe álcool?',
+    subtitle: 'Sem julgamento — é pra calibrar seu desafio',
+    questions: [
+      {
+        key: 'alcoholUse',
+        label: 'Álcool',
+        emoji: '🍺',
+        options: [
+          { value: 'never', label: 'Não bebo', emoji: '✅' },
+          { value: 'social', label: 'Só em festas / social', emoji: '🥂' },
+          { value: 'weekly', label: 'Quase toda semana', emoji: '🍻' },
+          { value: 'frequent', label: 'Várias vezes por semana', emoji: '⚠️' },
+        ],
+      },
+    ],
+    next: '/onboarding/quiz/11',
+  },
+  '11': {
+    title: '📚 Com que frequência você estuda?',
+    subtitle: 'Se não estuda, pule automaticamente',
+    skipWhen: { key: 'studySituation', values: ['none'] },
+    questions: [
+      {
+        key: 'studyFrequency',
+        label: 'Frequência de estudo',
+        emoji: '📚',
+        options: [
+          { value: 'occasional', label: 'De vez em quando', emoji: '📝' },
+          { value: 'few_times_week', label: 'Alguns dias na semana', emoji: '📖' },
+          { value: 'daily', label: 'Quase todo dia', emoji: '🔥' },
         ],
       },
     ],
@@ -595,8 +894,8 @@ export const GOAL_OPTIONS: { id: Goal; emoji: string; label: string }[] = [
 export const CHALLENGES = {
   iniciante: {
     id: 'iniciante' as const,
-    name: 'Reset90 Iniciante',
-    badge: 'INICIANTE',
+    name: 'Desafio Desafiante',
+    badge: 'DESAFIANTE',
     badgeColor: 'bg-accent-green text-black',
     tagline: 'O primeiro passo — leve, possível e consistente',
     image: '/niveis/iniciante.jpg',
@@ -655,8 +954,8 @@ export const CHALLENGES = {
   },
   intermediario: {
     id: 'intermediario' as const,
-    name: 'Reset90 Intermediário',
-    badge: 'INTERMEDIÁRIO',
+    name: 'Desafio Dominante',
+    badge: 'DOMINANTE',
     badgeColor: 'bg-accent-yellow text-black',
     tagline: 'Mais exigência — corpo, mente e foco alinhados',
     image: '/niveis/intermediario.jpg',
@@ -727,7 +1026,7 @@ export const CHALLENGES = {
   },
   implacavel: {
     id: 'implacavel' as const,
-    name: 'Reset90 Implacável',
+    name: 'Desafio Implacável',
     badge: 'IMPLACÁVEL',
     badgeColor: 'bg-accent-orange',
     tagline: 'Sem atalhos — transformação total em 90 dias',

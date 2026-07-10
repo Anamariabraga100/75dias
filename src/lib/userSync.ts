@@ -2,7 +2,7 @@ import type { ChallengeId } from '../store/useAppStore'
 import type { SubscriptionStatus } from './subscription'
 import { hasActiveAccess, parseSubscriptionStatus } from './subscription'
 import { useAppStore } from '../store/useAppStore'
-import { computeInvestedDays } from './streak'
+import { normalizeProgramDay } from './demoProgress'
 import { supabase } from './supabase'
 
 function getClient() {
@@ -25,6 +25,8 @@ type CloudProfile = {
   use_promo_offer: boolean
   payment_complete: boolean
   subscription_status: string | null
+  subscription_period_end: string | null
+  subscription_cancel_at_period_end: boolean
   onboarding_complete: boolean
   challenge_id: string | null
   challenge_accepted: boolean
@@ -43,6 +45,15 @@ function isChallengeId(value: string | null): value is ChallengeId {
   return value === 'iniciante' || value === 'intermediario' || value === 'implacavel'
 }
 
+function resolveOnboardingComplete(row: CloudProfile): boolean {
+  if (!row.onboarding_complete) return false
+  // Perfil criado por sync antecipado — quiz ainda não foi feito
+  if (row.discipline_score == null && !row.challenge_accepted) {
+    return false
+  }
+  return true
+}
+
 /** Carrega progresso do Supabase — evita pular onboarding por cache local. */
 export async function hydrateFromCloud(): Promise<boolean> {
   const client = getClient()
@@ -58,18 +69,14 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const { data: profile, error } = await client
     .from('profiles')
     .select(
-      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
+      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, subscription_period_end, subscription_cancel_at_period_end, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
     )
     .eq('user_id', userId)
     .maybeSingle()
 
   if (error) {
-    useAppStore.setState({ authUserId: userId })
-    const state = useAppStore.getState()
-    return Boolean(
-      state.onboardingComplete &&
-        userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
-    )
+    useAppStore.getState().resetProgressForNewAccount(userId)
+    return false
   }
 
   if (!profile) {
@@ -80,6 +87,12 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const row = profile as CloudProfile
   const challengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
   const subscriptionStatus = parseSubscriptionStatus(row.subscription_status)
+  const onboardingComplete = resolveOnboardingComplete(row)
+  const keepLocalScores =
+    !row.onboarding_complete && Boolean(stateBefore.profileInsights)
+  const disciplineScore = keepLocalScores
+    ? stateBefore.disciplineScore
+    : row.discipline_score ?? stateBefore.disciplineScore
 
   useAppStore.setState({
     authUserId: userId,
@@ -90,11 +103,13 @@ export async function hydrateFromCloud(): Promise<boolean> {
     usePromoOffer: row.use_promo_offer,
     paymentComplete: Boolean(row.payment_complete),
     subscriptionStatus,
-    onboardingComplete: Boolean(row.onboarding_complete),
+    subscriptionPeriodEnd: row.subscription_period_end ?? null,
+    subscriptionCancelAtPeriodEnd: Boolean(row.subscription_cancel_at_period_end),
+    onboardingComplete,
     challengeId,
     challengeAccepted: row.challenge_accepted,
     currentDay: Math.min(90, Math.max(1, row.current_day ?? 1)),
-    disciplineScore: row.discipline_score ?? stateBefore.disciplineScore,
+    disciplineScore,
   })
 
   const final = useAppStore.getState()
@@ -118,13 +133,9 @@ export async function syncProfileToCloud() {
 
   const state = useAppStore.getState()
   const photosCount = Object.keys(state.mirrorPhotos).length
-  const investedDays = computeInvestedDays(
-    state.challengeAccepted,
-    state.challengeId,
-    state.currentDay,
-    state.taskChecksByDay,
-    state.mirrorPhotos
-  )
+  const investedDays = state.challengeAccepted
+    ? normalizeProgramDay(state.currentDay)
+    : 0
 
   await client.from('profiles').upsert(
     {
@@ -141,6 +152,7 @@ export async function syncProfileToCloud() {
       discipline_score: state.disciplineScore,
       invested_days: investedDays,
       photos_count: photosCount,
+      total_xp: state.totalXp,
       updated_at: new Date().toISOString(),
       last_seen_at: new Date().toISOString(),
     },

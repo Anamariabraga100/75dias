@@ -11,6 +11,7 @@ const {
   markPaymentDisputed,
   parseMetadata,
   fulfillCheckoutSession,
+  syncSubscriptionDetails,
 } = require('../_lib/stripe-billing')
 const { claimStripeEvent, findUserIdByCustomer } = require('../_lib/stripe-events')
 
@@ -68,6 +69,7 @@ async function handleInvoicePaid(invoice, event) {
     subscriptionId,
     plan,
     usePromo,
+    subscription,
   })
 
   await recordPayment(admin, {
@@ -120,31 +122,34 @@ async function handleSubscriptionCreated(subscription, event) {
       subscriptionId,
       plan,
       usePromo,
+      subscription,
     })
   }
 }
 
 async function handleSubscriptionUpdated(subscription, event) {
-  const { admin, subscriptionId } = await resolveSubscriptionContext(subscription)
+  const { admin, subscriptionId, userId } = await resolveSubscriptionContext(subscription)
   const status = subscription.status
 
+  await syncSubscriptionDetails(admin, subscription, userId)
+
   if (subscription.pause_collection) {
-    await setSubscriptionStatus(admin, subscriptionId, 'paused', false)
+    await setSubscriptionStatus(admin, subscriptionId, 'paused', false, subscription)
     return
   }
 
   if (status === 'active' || status === 'trialing') {
-    await setSubscriptionStatus(admin, subscriptionId, 'active', true)
+    await setSubscriptionStatus(admin, subscriptionId, 'active', true, subscription)
     return
   }
 
   if (status === 'past_due' || status === 'unpaid') {
-    await setSubscriptionStatus(admin, subscriptionId, 'past_due', false)
+    await setSubscriptionStatus(admin, subscriptionId, 'past_due', false, subscription)
     return
   }
 
   if (status === 'canceled' || status === 'incomplete_expired') {
-    await setSubscriptionStatus(admin, subscriptionId, 'canceled', false)
+    await setSubscriptionStatus(admin, subscriptionId, 'canceled', false, subscription)
   }
 }
 
@@ -158,7 +163,7 @@ async function handleSubscriptionPaused(subscription) {
 
 async function handleSubscriptionResumed(subscription) {
   const { admin, subscriptionId } = await resolveSubscriptionContext(subscription)
-  await setSubscriptionStatus(admin, subscriptionId, 'active', true)
+  await setSubscriptionStatus(admin, subscriptionId, 'active', true, subscription)
 }
 
 async function handleChargeRefunded(charge, event) {

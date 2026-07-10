@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart2, Flag, LogOut, Settings } from 'lucide-react'
+import { BarChart2, Flag, LogOut, Settings, AlertTriangle } from 'lucide-react'
 import { formatPreferredName } from '../../lib/displayName'
 import { useAppStore } from '../../store/useAppStore'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
-import { getPlanDisplayLabel } from '../../lib/pricing'
+import { ChallengeConfirmModal } from '../ui/ChallengeConfirmModal'
 import { getDisplayDay, TOTAL_PROGRAM_DAYS } from '../../lib/demoProgress'
 import { HeaderDropdown } from '../ui/HeaderDropdown'
 import { UserAvatar } from '../ui/UserAvatar'
 import { SettingsSheet } from './SettingsSheet'
+import { SubscriptionPlanCard } from './SubscriptionPlanCard'
 import { signOut } from '../../lib/auth'
+import { refreshSubscriptionStatus } from '../../lib/subscriptionSync'
+import { hasActiveAccess } from '../../lib/subscription'
 import type { RefObject } from 'react'
 
 type ProfileDropdownProps = {
@@ -21,6 +24,7 @@ type ProfileDropdownProps = {
 export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownProps) {
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false)
   const {
     name,
     email,
@@ -28,14 +32,15 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
     challengeAccepted,
     challengeId,
     currentDay,
-    selectedPlan,
-    usePromoOffer,
+    paymentComplete,
+    subscriptionStatus,
+    quitChallenge,
   } = useAppStore()
 
   const displayName = formatPreferredName(name)
-  const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
   const levelLabel = challengeId ? LEVEL_META[challengeId].label : 'Sem desafio ativo'
   const displayDay = getDisplayDay(challengeAccepted, currentDay)
+  const hasSubscription = hasActiveAccess(subscriptionStatus, paymentComplete)
   const displayEmail =
     email || (name ? `${name.toLowerCase().replace(/\s+/g, '')}@reset90.app` : 'membro@reset90.app')
 
@@ -54,6 +59,22 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
     onClose()
     setSettingsOpen(true)
   }
+
+  const requestQuit = () => {
+    onClose()
+    setQuitConfirmOpen(true)
+  }
+
+  const handleConfirmQuit = () => {
+    quitChallenge()
+    setQuitConfirmOpen(false)
+    navigate('/app', { replace: true })
+  }
+
+  useEffect(() => {
+    if (!open || !hasSubscription) return
+    void refreshSubscriptionStatus()
+  }, [open, hasSubscription])
 
   const items = [
     {
@@ -84,19 +105,17 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
           </div>
         </div>
 
-        <div className="px-4 py-2.5 border-b border-neutral-800 grid grid-cols-2 gap-2 text-center">
-          <div className="bg-neutral-900/60 rounded-lg py-2">
-            <p className="text-[10px] text-neutral-500">Dia</p>
+        <div className="px-4 py-2.5 border-b border-neutral-800">
+          <div className="bg-neutral-900/60 rounded-lg py-2 px-3 text-center">
+            <p className="text-[10px] text-neutral-500">Dia do programa</p>
             <p className="font-bold text-sm">
               {displayDay}
               <span className="text-neutral-500 font-medium">/{TOTAL_PROGRAM_DAYS}</span>
             </p>
           </div>
-          <div className="bg-neutral-900/60 rounded-lg py-2">
-            <p className="text-[10px] text-neutral-500">Plano</p>
-            <p className="font-bold text-[11px] truncate px-1">{planLabel.replace('Plano ', '')}</p>
-          </div>
         </div>
+
+        {hasSubscription && <SubscriptionPlanCard variant="compact" />}
 
         <div className="py-1">
           {items.map(({ icon: Icon, label, onClick }) => (
@@ -113,6 +132,16 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
         </div>
 
         <div className="border-t border-neutral-800 py-1">
+          {challengeAccepted && challengeId && (
+            <button
+              type="button"
+              onClick={requestQuit}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-400/90 hover:bg-red-950/30 transition-colors"
+            >
+              <AlertTriangle size={16} className="shrink-0" />
+              Desistir do desafio
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSignOut}
@@ -125,6 +154,16 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
       </HeaderDropdown>
 
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+
+      {quitConfirmOpen && challengeId && (
+        <ChallengeConfirmModal
+          type="quit"
+          challengeId={challengeId}
+          currentDay={currentDay}
+          onConfirm={handleConfirmQuit}
+          onCancel={() => setQuitConfirmOpen(false)}
+        />
+      )}
     </>
   )
 }

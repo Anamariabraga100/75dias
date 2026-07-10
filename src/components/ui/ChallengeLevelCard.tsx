@@ -14,31 +14,31 @@ export const LEVEL_META: Record<
   }
 > = {
   iniciante: {
-    label: 'Iniciante',
+    label: 'Desafiante',
     level: 1,
     intensity: 'Leve',
     imagePosition: 'object-[center_15%]',
-    ctaCard: 'Dar o primeiro passo',
-    ctaPreview: 'Começar agora',
-    ctaConfirm: 'Iniciar minha jornada',
+    ctaCard: 'Começar no Desafio Desafiante',
+    ctaPreview: 'Começar no Desafio Desafiante',
+    ctaConfirm: 'Começar no Desafio Desafiante',
   },
   intermediario: {
-    label: 'Intermediário',
+    label: 'Dominante',
     level: 2,
     intensity: 'Moderado',
     imagePosition: 'object-[center_20%]',
-    ctaCard: 'Quero evoluir',
-    ctaPreview: 'Aceitar desafio',
-    ctaConfirm: 'Aceitar e começar',
+    ctaCard: 'Começar no Desafio Dominante',
+    ctaPreview: 'Começar no Desafio Dominante',
+    ctaConfirm: 'Começar no Desafio Dominante',
   },
   implacavel: {
     label: 'Implacável',
     level: 3,
     intensity: 'Máximo',
     imagePosition: 'object-[center_25%]',
-    ctaCard: 'Entrar no modo Implacável 🔥',
-    ctaPreview: 'Aceito o desafio',
-    ctaConfirm: 'Provar meu compromisso',
+    ctaCard: 'Começar no Desafio Implacável',
+    ctaPreview: 'Começar no Desafio Implacável',
+    ctaConfirm: 'Começar no Desafio Implacável',
   },
 }
 

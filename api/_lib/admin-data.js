@@ -6,6 +6,12 @@ function startOfTodayIso() {
   return d.toISOString()
 }
 
+const PROFILE_FIELDS =
+  'user_id, email, name, avatar_url, selected_plan, payment_complete, subscription_status, stripe_customer_id, stripe_subscription_id, onboarding_complete, challenge_id, challenge_accepted, current_day, invested_days, photos_count, total_xp, created_at, updated_at, last_seen_at'
+
+const PROFILE_FIELDS_BASIC =
+  'user_id, email, name, avatar_url, challenge_id, challenge_accepted, current_day, invested_days, photos_count, total_xp, last_seen_at'
+
 async function attachProfiles(items, userIdKey = 'user_id') {
   const userIds = [...new Set(items.map((p) => p[userIdKey]).filter(Boolean))]
   if (userIds.length === 0) return items
@@ -149,27 +155,115 @@ async function fetchSubscribers() {
   const client = getSupabaseAdmin()
   const { data, error } = await client
     .from('profiles')
-    .select(
-      'user_id, email, name, avatar_url, selected_plan, payment_complete, subscription_status, stripe_customer_id, stripe_subscription_id, onboarding_complete, challenge_id, challenge_accepted, current_day, invested_days, photos_count, created_at, updated_at, last_seen_at'
-    )
+    .select(PROFILE_FIELDS)
     .eq('payment_complete', true)
     .order('last_seen_at', { ascending: false })
 
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map(normalizeProfile)
 }
 
 async function fetchAllUsers() {
   const client = getSupabaseAdmin()
   const { data, error } = await client
     .from('profiles')
-    .select(
-      'user_id, email, name, avatar_url, selected_plan, payment_complete, subscription_status, stripe_customer_id, onboarding_complete, challenge_id, challenge_accepted, current_day, invested_days, photos_count, created_at, updated_at, last_seen_at'
-    )
+    .select(PROFILE_FIELDS)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map(normalizeProfile)
+}
+
+function normalizeProfile(row) {
+  return {
+    ...row,
+    invested_days: Number(row.invested_days ?? 0),
+    photos_count: Number(row.photos_count ?? 0),
+    total_xp: Number(row.total_xp ?? 0),
+    current_day: Number(row.current_day ?? 1),
+  }
+}
+
+async function fetchEngagementLeaderboard() {
+  const client = getSupabaseAdmin()
+
+  const [topInvested, topXp, topPhotos, recentPhotosRes] = await Promise.all([
+    client
+      .from('profiles')
+      .select(PROFILE_FIELDS_BASIC)
+      .gt('invested_days', 0)
+      .order('invested_days', { ascending: false })
+      .limit(15),
+    client
+      .from('profiles')
+      .select(PROFILE_FIELDS_BASIC)
+      .gt('total_xp', 0)
+      .order('total_xp', { ascending: false })
+      .limit(15),
+    client
+      .from('profiles')
+      .select(PROFILE_FIELDS_BASIC)
+      .gt('photos_count', 0)
+      .order('photos_count', { ascending: false })
+      .limit(15),
+    client
+      .from('mirror_photo_logs')
+      .select('id, user_id, day, photo_url, created_at')
+      .not('photo_url', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(60),
+  ])
+
+  if (topInvested.error) throw topInvested.error
+  if (topXp.error) throw topXp.error
+  if (topPhotos.error) throw topPhotos.error
+  if (recentPhotosRes.error) throw recentPhotosRes.error
+
+  const recentPhotos = await attachProfiles(recentPhotosRes.data ?? [])
+
+  return {
+    topInvested: (topInvested.data ?? []).map(normalizeProfile),
+    topXp: (topXp.data ?? []).map(normalizeProfile),
+    topPhotos: (topPhotos.data ?? []).map(normalizeProfile),
+    recentPhotos: recentPhotos.map((p) => ({
+      id: p.id,
+      user_id: p.user_id,
+      day: Number(p.day),
+      photo_url: p.photo_url,
+      created_at: p.created_at,
+      name: p.name,
+      email: p.email,
+      avatar_url: p.profile?.avatar_url ?? null,
+    })),
+  }
+}
+
+async function fetchUserPhotos(userId) {
+  const client = getSupabaseAdmin()
+
+  const [profileRes, photosRes] = await Promise.all([
+    client.from('profiles').select(PROFILE_FIELDS_BASIC).eq('user_id', userId).maybeSingle(),
+    client
+      .from('mirror_photo_logs')
+      .select('id, user_id, day, photo_url, created_at')
+      .eq('user_id', userId)
+      .not('photo_url', 'is', null)
+      .order('day', { ascending: true }),
+  ])
+
+  if (profileRes.error) throw profileRes.error
+  if (photosRes.error) throw photosRes.error
+
+  return {
+    profile: profileRes.data ? normalizeProfile(profileRes.data) : null,
+    photos: (photosRes.data ?? []).map((p) => ({
+      id: p.id,
+      user_id: p.user_id,
+      day: Number(p.day),
+      photo_url: p.photo_url,
+      created_at: p.created_at,
+    })),
+  }
 }
 
 async function fetchPayments(limit = 50) {
@@ -210,4 +304,6 @@ module.exports = {
   fetchAllUsers,
   fetchPayments,
   fetchStripeEvents,
+  fetchEngagementLeaderboard,
+  fetchUserPhotos,
 }

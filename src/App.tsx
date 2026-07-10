@@ -26,6 +26,7 @@ import { AdminSubscribersPage } from './pages/admin/AdminSubscribersPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { AdminPaymentsPage } from './pages/admin/AdminPaymentsPage'
 import { AdminEventsPage } from './pages/admin/AdminEventsPage'
+import { AdminProgressPage } from './pages/admin/AdminProgressPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { OnboardingGuard } from './components/onboarding/OnboardingGuard'
 import { OnboardingIndexRedirect } from './components/onboarding/OnboardingIndexRedirect'
@@ -84,6 +85,7 @@ export default function App() {
             <Route path="pagamentos" element={<AdminPaymentsPage />} />
             <Route path="eventos" element={<AdminEventsPage />} />
             <Route path="assinantes" element={<AdminSubscribersPage />} />
+            <Route path="progresso" element={<AdminProgressPage />} />
           </Route>
         </Route>
 

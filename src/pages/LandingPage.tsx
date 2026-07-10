@@ -3,9 +3,9 @@ import { Mail } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
 import {
-  applySessionToStore,
   assertSupabaseReady,
   completeGoogleSignIn,
+  establishAuthSession,
   formatAuthError,
   navigateAfterAuth,
   signInWithGoogle,
@@ -51,7 +51,7 @@ export function LandingPage() {
     try {
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
-      applySessionToStore(session)
+      await establishAuthSession(session, { freshAccount: true })
       await navigateAfterAuth(navigate)
     } catch (e) {
       setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
@@ -71,7 +71,7 @@ export function LandingPage() {
       assertSupabaseReady()
       const session = await signInWithGoogle()
       if (session) {
-        applySessionToStore(session)
+        await establishAuthSession(session, { freshAccount: true })
         await navigateAfterAuth(navigate)
       }
     } catch (e) {
