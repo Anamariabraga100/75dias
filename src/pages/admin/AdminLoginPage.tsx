@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Logo } from '../../components/ui/Logo'
 import { Button } from '../../components/ui/Button'
 import { PasswordField } from '../../components/ui/PasswordField'
-import { getAdminEmailFromEnv } from '../../lib/adminCredentials'
 import {
   activateAdminSession,
   isAdminAccessConfigured,
@@ -16,7 +15,6 @@ export function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const adminEmail = getAdminEmailFromEnv()
   const configured = isAdminAccessConfigured()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,16 +45,9 @@ export function AdminLoginPage() {
   return (
     <div className="min-h-dvh bg-[#0a0a0a] flex flex-col items-center justify-center px-6">
       <Logo size="lg" />
-      <h1 className="text-xl font-bold mt-6 mb-1">Admin Reset90</h1>
-      <p className="text-neutral-500 text-sm text-center max-w-sm mb-8">
-        Entre com a senha configurada em VITE_ADMIN_PASSWORD.
-      </p>
+      <h1 className="text-xl font-bold mt-6 mb-6 tracking-tight">RESET90 - Área Admin</h1>
 
-      {configured && adminEmail && (
-        <p className="text-neutral-400 text-sm mb-4">{adminEmail}</p>
-      )}
-
-      <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-3">
+      <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
         {error && <p className="text-red-400 text-xs text-center">{error}</p>}
 
         <PasswordField

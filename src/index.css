@@ -141,6 +141,19 @@ body {
     0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
+.landing-btn-google.landing-btn-outline {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+  padding: 1.125rem 1.5rem;
+}
+
+.landing-btn-google.landing-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
 .landing-btn-google:hover {
   background: #fafafa;
   box-shadow:

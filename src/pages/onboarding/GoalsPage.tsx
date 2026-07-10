@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { OnboardingLayout, PageTitle } from '../../components/layout/OnboardingLayout'
 import { Button } from '../../components/ui/Button'
 import { MultiSelectCard } from '../../components/ui/SelectionCard'
+import { OnboardingProgress } from '../../components/ui/OnboardingProgress'
 import { GOAL_OPTIONS, useAppStore } from '../../store/useAppStore'
 
 export function GoalsPage() {
@@ -20,9 +21,11 @@ export function GoalsPage() {
         </Button>
       }
     >
+      <OnboardingProgress current={2} total={8} label="Montando seu perfil" />
       <PageTitle
+        className="mb-4"
         title="O que você quer melhorar?"
-        subtitle="Pode escolher mais de uma área"
+        subtitle="Pode escolher mais de uma — vamos focar no que importa pra você."
       />
       <div className="space-y-2.5">
         {GOAL_OPTIONS.map((g) => (

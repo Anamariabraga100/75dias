@@ -20,19 +20,12 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
 
     let active = true
 
-    const redirectIfGuestRoute = async () => {
-      if (shouldRedirectAuthenticatedFrom(window.location.pathname)) {
-        await navigateAfterAuth(navigate)
-      }
-    }
-
     const bootstrap = async () => {
       const session = await restoreAuthSession()
       if (!active) return
 
       if (session) {
         scheduleProfileSync()
-        await redirectIfGuestRoute()
       }
 
       if (active) setReady(true)
@@ -50,10 +43,7 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
         await hydrateFromCloud()
         scheduleProfileSync()
 
-        if (
-          (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') &&
-          shouldRedirectAuthenticatedFrom(window.location.pathname)
-        ) {
+        if (event === 'SIGNED_IN' && shouldRedirectAuthenticatedFrom(window.location.pathname)) {
           await navigateAfterAuth(navigate)
         }
         return

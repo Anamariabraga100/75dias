@@ -73,26 +73,13 @@ export async function hydrateFromCloud(): Promise<boolean> {
   }
 
   if (!profile) {
-    useAppStore.setState({ authUserId: userId })
-    const state = useAppStore.getState()
-    if (
-      state.onboardingComplete ||
-      userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
-    ) {
-      await syncProfileToCloud()
-      return Boolean(
-        state.onboardingComplete &&
-          userHasPaidAccess(state.subscriptionStatus, state.paymentComplete)
-      )
-    }
     useAppStore.getState().resetProgressForNewAccount(userId)
     return false
   }
 
   const row = profile as CloudProfile
   const challengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
-  const subscriptionStatus =
-    parseSubscriptionStatus(row.subscription_status) ?? stateBefore.subscriptionStatus
+  const subscriptionStatus = parseSubscriptionStatus(row.subscription_status)
 
   useAppStore.setState({
     authUserId: userId,
@@ -101,9 +88,9 @@ export async function hydrateFromCloud(): Promise<boolean> {
     avatarUrl: row.avatar_url ?? stateBefore.avatarUrl,
     selectedPlan: row.selected_plan === 'monthly' ? 'monthly' : 'quarterly',
     usePromoOffer: row.use_promo_offer,
-    paymentComplete: row.payment_complete || stateBefore.paymentComplete,
+    paymentComplete: Boolean(row.payment_complete),
     subscriptionStatus,
-    onboardingComplete: row.onboarding_complete || stateBefore.onboardingComplete,
+    onboardingComplete: Boolean(row.onboarding_complete),
     challengeId,
     challengeAccepted: row.challenge_accepted,
     currentDay: Math.min(90, Math.max(1, row.current_day ?? 1)),
@@ -155,15 +142,18 @@ export async function syncProfileToCloud() {
 }
 
 
-export async function logMirrorPhotoToCloud(day: number) {
+export async function logMirrorPhotoToCloud(day: number, photoUrl?: string) {
   const client = getClient()
   const userId = await getAuthUserId()
   if (!client || !userId) return
 
-  await client.from('mirror_photo_logs').upsert(
-    { user_id: userId, day },
-    { onConflict: 'user_id,day' }
-  )
+  const row: { user_id: string; day: number; photo_url?: string } = {
+    user_id: userId,
+    day,
+  }
+  if (photoUrl) row.photo_url = photoUrl
+
+  await client.from('mirror_photo_logs').upsert(row, { onConflict: 'user_id,day' })
 
   await syncProfileToCloud()
 }

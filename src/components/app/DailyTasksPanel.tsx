@@ -10,11 +10,18 @@ import {
   BarChart2,
   ArrowRight,
   Camera,
+  Clock,
+  FastForward,
 } from 'lucide-react'
 import { CHALLENGES, useAppStore, type ChallengeId } from '../../store/useAppStore'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
 import { isPhotoDay } from '../../lib/photoSchedule'
 import { getDisplayDay, normalizeProgramDay, TOTAL_PROGRAM_DAYS } from '../../lib/demoProgress'
+import {
+  formatUnlockCountdown,
+  getDayUnlockStatus,
+  isFastDayMode,
+} from '../../lib/dayUnlock'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { PhotoCheckInSheet } from './PhotoCheckInSheet'
 
@@ -99,10 +106,14 @@ export function DailyTasksPanel() {
     registerMirrorPhoto,
     taskChecksByDay,
     toggleTaskCheck,
+    dayCompletedAt,
+    markCurrentDayComplete,
+    advanceProgramDay,
   } = useAppStore()
   const [infoTask, setInfoTask] = useState<Task | null>(null)
   const [showCompletedDetails, setShowCompletedDetails] = useState(false)
   const [showPhotoCheckIn, setShowPhotoCheckIn] = useState(false)
+  const [, setUnlockTick] = useState(0)
 
   const programDay = normalizeProgramDay(currentDay)
   const challenge = challengeId ? CHALLENGES[challengeId] : null
@@ -130,11 +141,72 @@ export function DailyTasksPanel() {
     Math.round((displayDay / TOTAL_PROGRAM_DAYS) * 100)
   )
 
+  const dayUnlock = getDayUnlockStatus({
+    challengeAccepted,
+    challengeId,
+    currentDay,
+    taskChecksByDay,
+    mirrorPhotos,
+    dayCompletedAt,
+    now: Date.now(),
+  })
+
   useEffect(() => {
     if (!allDone) setShowCompletedDetails(false)
   }, [allDone])
 
+  useEffect(() => {
+    if (allDone) markCurrentDayComplete()
+  }, [allDone, markCurrentDayComplete])
+
+  useEffect(() => {
+    if (!dayUnlock.canAdvance && dayUnlock.remainingMs > 0) {
+      const id = window.setInterval(() => setUnlockTick((t) => t + 1), 1000)
+      return () => window.clearInterval(id)
+    }
+  }, [dayUnlock.canAdvance, dayUnlock.remainingMs])
+
   if (!challengeId || !challenge || !meta) return null
+
+  const nextDaySection =
+    programDay < TOTAL_PROGRAM_DAYS ? (
+      <div className="mt-4 pt-4 border-t border-white/10 text-left">
+        {dayUnlock.canAdvance ? (
+          <button
+            type="button"
+            onClick={() => advanceProgramDay()}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold py-3 text-sm hover:bg-neutral-100 transition-colors"
+          >
+            <FastForward size={16} />
+            Iniciar dia {programDay + 1}
+          </button>
+        ) : (
+          <div className="flex items-center justify-center gap-2 text-neutral-400 text-sm py-2">
+            <Clock size={15} className="shrink-0" />
+            <span>
+              Próximo dia em{' '}
+              <span className="font-semibold text-neutral-200 tabular-nums">
+                {formatUnlockCountdown(dayUnlock.remainingMs)}
+              </span>
+            </span>
+          </div>
+        )}
+        {isFastDayMode() && (
+          <button
+            type="button"
+            onClick={() => advanceProgramDay(true)}
+            className="w-full mt-2 text-xs font-semibold text-amber-400/90 hover:text-amber-300 transition-colors py-2"
+          >
+            ⚡ Avançar dia (modo teste)
+          </button>
+        )}
+        {isFastDayMode() && (
+          <p className="text-[10px] text-neutral-600 text-center mt-1">
+            Dev: {isFastDayMode() ? '1 min' : '24h'} após concluir o dia
+          </p>
+        )}
+      </div>
+    ) : null
 
   const progressSummary = (
     <div className="rounded-xl bg-black/30 border border-white/5 p-3 mb-4 text-left">
@@ -310,6 +382,7 @@ export function DailyTasksPanel() {
           </div>
           <p className="font-bold text-lg text-white mb-2">Dia completo!</p>
           <p className="text-neutral-400 text-sm leading-relaxed mb-4">{motivation}</p>
+          {nextDaySection}
           {progressSummary}
           <button
             type="button"
@@ -341,6 +414,7 @@ export function DailyTasksPanel() {
           {renderTasks()}
           {allDone && (
             <div className="mt-4 pt-4 border-t border-neutral-800 space-y-3">
+              {nextDaySection}
               {progressSummary}
               {progressLinks}
             </div>

@@ -10,20 +10,28 @@ import {
   type RoutineStepId,
 } from '../../store/useAppStore'
 
-const ADVANCE_MS = 320
+const ADVANCE_MS = 0
 
 function StepProgress({ current }: { current: RoutineStepId }) {
   const idx = QUIZ_STEP_ORDER.indexOf(current)
+  const funnelStep = 2 + idx + 1
   return (
-    <div className="flex items-center gap-1 mb-5">
-      {QUIZ_STEP_ORDER.map((step, i) => (
-        <div
-          key={step}
-          className={`h-1 flex-1 rounded-full transition-colors ${
-            i <= idx ? 'bg-accent-blue' : 'bg-neutral-800'
-          }`}
-        />
-      ))}
+    <div className="mb-4">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+          Montando seu perfil · {funnelStep}/8
+        </p>
+      </div>
+      <div className="flex items-center gap-1 mb-2">
+        {QUIZ_STEP_ORDER.map((step, i) => (
+          <div
+            key={step}
+            className={`h-1 flex-1 rounded-full transition-colors ${
+              i <= idx ? 'bg-accent-blue' : 'bg-neutral-800'
+            }`}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -54,16 +62,22 @@ export function RoutineQuestionPage() {
       setRoutineAnswer('studyFrequency', 'none')
     }
 
-    setTimeout(() => {
+    const goNext = () => {
       if (stepNum === '6') computeScores()
       navigate(config.next)
-    }, ADVANCE_MS)
+    }
+
+    if (ADVANCE_MS > 0) {
+      setTimeout(goNext, ADVANCE_MS)
+    } else {
+      goNext()
+    }
   }
 
   return (
     <OnboardingLayout showLogo={false}>
       <StepProgress current={stepNum} />
-      <PageTitle title={config.title} subtitle={config.subtitle} className="mb-5" />
+      <PageTitle title={config.title} subtitle={config.subtitle} className="mb-4" />
 
       <div className="space-y-2.5 flex-1">
         {question.options.map((opt) => (

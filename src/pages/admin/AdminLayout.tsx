@@ -1,9 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, LogOut, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, ArrowLeft, CreditCard, Activity, UserRound } from 'lucide-react'
 import { clearAdminSession } from '../../lib/adminSession'
 
 const nav = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/usuarios', label: 'Usuários', icon: UserRound },
+  { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard },
+  { to: '/admin/eventos', label: 'Eventos', icon: Activity },
   { to: '/admin/assinantes', label: 'Assinantes', icon: Users },
 ]
 

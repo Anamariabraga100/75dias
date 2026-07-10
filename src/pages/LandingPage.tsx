@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Mail } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
-import { useAppStore } from '../store/useAppStore'
 import {
   applySessionToStore,
   assertSupabaseReady,
@@ -39,7 +38,6 @@ function GoogleIcon() {
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const enterAsReturningUser = useAppStore((s) => s.enterAsReturningUser)
   const [loading, setLoading] = useState<'google' | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const { clientId: googleClientId, ready: googleReady } = useGoogleClientId()
@@ -82,22 +80,12 @@ export function LandingPage() {
     }
   }
 
-  const handleReturningUser = () => {
-    setAuthError(null)
-    if (!isSupabaseConfigured()) {
-      enterAsReturningUser()
-      navigate('/app')
-      return
-    }
-    navigate('/auth/email?mode=login')
-  }
-
   const googleButton = (
     <button
       type="button"
       onClick={useGisPopup ? undefined : handleGoogleLoginFallback}
       disabled={loading !== null}
-      className="landing-btn-google disabled:opacity-60 w-full"
+      className="landing-btn-google landing-btn-outline disabled:opacity-60 w-full"
     >
       <GoogleIcon />
       {loading === 'google' ? 'Abrindo Google…' : 'Continuar com Google'}
@@ -140,6 +128,16 @@ export function LandingPage() {
             )}
 
             <div className="mt-7 space-y-3 max-w-sm mx-auto w-full">
+              <button
+                type="button"
+                onClick={startEmailSignup}
+                disabled={loading !== null}
+                className="landing-btn-google disabled:opacity-60 w-full"
+              >
+                <Mail size={20} strokeWidth={2} className="shrink-0" />
+                Continuar com e-mail
+              </button>
+
               {googleReady && useGisPopup ? (
                 <GoogleSignInOverlay
                   disabled={loading !== null}
@@ -152,26 +150,7 @@ export function LandingPage() {
               ) : (
                 googleButton
               )}
-
-              <button
-                type="button"
-                onClick={startEmailSignup}
-                disabled={loading !== null}
-                className="landing-btn-email disabled:opacity-60"
-              >
-                <Mail size={20} strokeWidth={2} className="shrink-0" />
-                Continuar com e-mail
-              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleReturningUser}
-              disabled={loading !== null}
-              className="landing-btn-account disabled:opacity-60"
-            >
-              Já tenho conta
-            </button>
           </div>
         </div>
       </div>

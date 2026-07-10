@@ -67,8 +67,8 @@ export function PageTitle({
 }) {
   return (
     <div className={`mb-8 ${className}`}>
-      <h1 className="text-3xl font-bold text-white leading-tight mb-2">{title}</h1>
-      {subtitle && <p className="text-neutral-400 text-base">{subtitle}</p>}
+      <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-1.5">{title}</h1>
+      {subtitle && <p className="text-neutral-400 text-sm leading-relaxed">{subtitle}</p>}
     </div>
   )
 }

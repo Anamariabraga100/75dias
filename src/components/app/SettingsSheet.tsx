@@ -6,6 +6,8 @@ import { useAppStore } from '../../store/useAppStore'
 import { getPlanDisplayLabel } from '../../lib/pricing'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
 import { signOut } from '../../lib/auth'
+import { isFastDayMode } from '../../lib/dayUnlock'
+import { normalizeProgramDay, TOTAL_PROGRAM_DAYS } from '../../lib/demoProgress'
 
 interface SettingsSheetProps {
   onClose: () => void
@@ -21,11 +23,15 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
     challengeAccepted,
     selectedPlan,
     usePromoOffer,
+    currentDay,
+    advanceProgramDay,
   } = useAppStore()
 
   const displayName = formatPreferredName(name)
   const planLabel = getPlanDisplayLabel(selectedPlan, usePromoOffer)
   const levelLabel = challengeId ? LEVEL_META[challengeId].label : 'Nenhum'
+  const programDay = normalizeProgramDay(currentDay)
+  const devMode = isFastDayMode()
 
   const handleSignOut = async () => {
     onClose()
@@ -58,6 +64,25 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
             </dd>
           </div>
         </dl>
+
+        {devMode && challengeAccepted && programDay < TOTAL_PROGRAM_DAYS && (
+          <div className="mb-5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+            <p className="text-xs font-bold text-amber-500 uppercase tracking-wide mb-2">
+              Modo teste
+            </p>
+            <p className="text-app-muted text-xs mb-3 leading-relaxed">
+              Dias liberam em 1 min após concluir (em vez de 24h). Use o botão abaixo para pular
+              sem esperar.
+            </p>
+            <button
+              type="button"
+              onClick={() => advanceProgramDay(true)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-amber-400 border border-amber-500/40 hover:bg-amber-500/10 transition-colors"
+            >
+              Avançar para dia {programDay + 1}
+            </button>
+          </div>
+        )}
 
         <button
           type="button"

@@ -72,7 +72,7 @@ module.exports = async function handler(req, res) {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/onboarding/pagamento/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/onboarding/pagamento`,
+      cancel_url: `${appUrl}/onboarding/planos`,
       payment_method_types: ['card'],
       metadata: {
         userId: auth.user.id,

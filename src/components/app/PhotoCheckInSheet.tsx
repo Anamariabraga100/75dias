@@ -22,7 +22,7 @@ export function PhotoCheckInSheet({ day, onRegister, onClose }: PhotoCheckInShee
     setError(null)
     setLoading(true)
     try {
-      const dataUrl = await storeMirrorPhoto(file)
+      const dataUrl = await storeMirrorPhoto(file, day)
       setPreviewUrl(dataUrl)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível usar esta imagem.')

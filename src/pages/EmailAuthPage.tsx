@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { OnboardingLayout, PageTitle } from '../components/layout/OnboardingLayout'
 import { Button } from '../components/ui/Button'
 import { InputField } from '../components/ui/InputField'
+import { OnboardingProgress } from '../components/ui/OnboardingProgress'
 import { PasswordChecklist, PasswordField } from '../components/ui/PasswordField'
 import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
 import {
@@ -36,6 +37,12 @@ function GoogleIcon() {
   )
 }
 
+const SIGNUP_CONTEXT = [
+  'Você chegou até aqui — isso já mostra que quer mudar de verdade.',
+  'Em 90 dias, sua rotina pode estar completamente diferente.',
+  'Milhares começaram assim: um e-mail e a decisão de não desistir.',
+]
+
 export function EmailAuthPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -52,6 +59,8 @@ export function EmailAuthPage() {
   const [showGoogleHint, setShowGoogleHint] = useState(false)
   const { clientId: googleClientId, ready: googleReady } = useGoogleClientId()
   const useGisPopup = Boolean(googleClientId)
+
+  const contextPhrase = SIGNUP_CONTEXT[0]
 
   useEffect(() => {
     setStep('email')
@@ -177,9 +186,12 @@ export function EmailAuthPage() {
   const canSubmitPassword =
     password.length >= 6 && (!isSignup || (confirmPassword.length >= 6 && password === confirmPassword))
 
+  const progressStep = step === 'email' ? 1 : 2
+
   return (
     <OnboardingLayout
       onBack={handleBack}
+      className="py-2"
       footer={
         step === 'email' ? (
           <Button disabled={!canContinueEmail || loading} onClick={handleEmailContinue}>
@@ -192,7 +204,14 @@ export function EmailAuthPage() {
         )
       }
     >
+      <OnboardingProgress
+        current={progressStep}
+        total={2}
+        label={isSignup ? 'Criando sua conta' : 'Entrando na conta'}
+      />
+
       <PageTitle
+        className="mb-4"
         title={
           step === 'email'
             ? isSignup
@@ -205,7 +224,7 @@ export function EmailAuthPage() {
         subtitle={
           step === 'email'
             ? isSignup
-              ? 'Vamos criar sua conta no Reset90'
+              ? 'Leva menos de 2 minutos para começar o Reset90'
               : 'Digite o e-mail da sua conta'
             : isSignup
               ? `Conta: ${email}`
@@ -213,9 +232,15 @@ export function EmailAuthPage() {
         }
       />
 
+      {step === 'email' && isSignup && (
+        <p className="text-neutral-400 text-sm leading-relaxed mb-4 px-0.5 border-l-2 border-accent-blue/50 pl-3">
+          {contextPhrase}
+        </p>
+      )}
+
       {error && (
         <div
-          className={`rounded-2xl px-4 py-3 mb-4 text-sm ${
+          className={`rounded-xl px-3 py-2.5 mb-3 text-sm ${
             showGoogleHint
               ? 'bg-amber-950/50 border border-amber-800/60 text-amber-200'
               : 'bg-red-950/50 border border-red-900/60 text-red-300'
@@ -230,12 +255,12 @@ export function EmailAuthPage() {
             disabled={loading}
             onCredential={handleGoogleCredential}
             onError={(msg) => setError(formatAuthError(msg))}
-            className="mb-4"
+            className="mb-3"
           >
             <button
               type="button"
               disabled={loading}
-              className="landing-btn-google disabled:opacity-60 w-full"
+              className="landing-btn-google landing-btn-outline disabled:opacity-60 w-full"
             >
               <GoogleIcon />
               Continuar com Google
@@ -246,7 +271,7 @@ export function EmailAuthPage() {
             type="button"
             onClick={handleGoogleFromHint}
             disabled={loading}
-            className="landing-btn-google disabled:opacity-60 mb-4"
+            className="landing-btn-google landing-btn-outline disabled:opacity-60 mb-3 w-full"
           >
             <GoogleIcon />
             Continuar com Google
@@ -254,23 +279,30 @@ export function EmailAuthPage() {
         )
       )}
 
-      <div className="mt-auto mb-4 space-y-3">
+      <div className="space-y-3">
         {step === 'email' ? (
-          <InputField
-            value={email}
-            onChange={setEmail}
-            placeholder="seu@email.com"
-            type="email"
-          />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (canContinueEmail) handleEmailContinue()
+            }}
+          >
+            <InputField
+              value={email}
+              onChange={setEmail}
+              placeholder="seu@email.com"
+              type="email"
+            />
+          </form>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <PasswordField
               label={isSignup ? 'Escolha uma senha' : 'Sua senha'}
               value={password}
               onChange={setPassword}
               placeholder="Mínimo 6 caracteres"
               autoComplete={isSignup ? 'new-password' : 'current-password'}
-              hint={isSignup ? 'Use letras e números — fácil de lembrar, difícil de adivinhar.' : undefined}
+              hint={isSignup ? 'Use letras e números — fácil de lembrar.' : undefined}
             />
             {isSignup && (
               <PasswordField
@@ -288,11 +320,20 @@ export function EmailAuthPage() {
                 showMatch
               />
             ) : (
-              <p className="text-sm text-neutral-500 px-1">Mínimo 6 caracteres.</p>
+              <p className="text-xs text-neutral-500 px-1">Mínimo 6 caracteres.</p>
             )}
           </div>
         )}
       </div>
+
+      {step === 'email' && isSignup && (
+        <p className="text-center text-sm text-neutral-500 mt-5">
+          Já tem conta?{' '}
+          <Link to="/auth/email?mode=login" className="text-white font-semibold hover:underline">
+            Entrar
+          </Link>
+        </p>
+      )}
     </OnboardingLayout>
   )
 }

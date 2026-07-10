@@ -3,20 +3,7 @@ import { fetchSubscribers, type AdminProfile } from '../../lib/adminApi'
 import { UserAvatar } from '../../components/ui/UserAvatar'
 import { LEVEL_META } from '../../components/ui/ChallengeLevelCard'
 import type { ChallengeId } from '../../store/useAppStore'
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-  })
-}
-
-function planLabel(plan: string | null) {
-  if (plan === 'quarterly') return 'Trimestral'
-  if (plan === 'monthly') return 'Mensal'
-  return '—'
-}
+import { formatAdminDateShort, planLabel, SubscriptionStatusBadge } from './adminUi'
 
 export function AdminSubscribersPage() {
   const [rows, setRows] = useState<AdminProfile[]>([])
@@ -105,6 +92,7 @@ export function AdminSubscribersPage() {
                 <tr className="text-neutral-500 text-left bg-neutral-950/80 border-b border-neutral-800">
                   <th className="px-4 py-3 font-medium">Usuário</th>
                   <th className="px-4 py-3 font-medium">Plano</th>
+                  <th className="px-4 py-3 font-medium">Stripe</th>
                   <th className="px-4 py-3 font-medium">Desafio</th>
                   <th className="px-4 py-3 font-medium">Dia</th>
                   <th className="px-4 py-3 font-medium">Investida</th>
@@ -131,6 +119,9 @@ export function AdminSubscribersPage() {
                       </td>
                       <td className="px-4 py-3 text-neutral-300">{planLabel(r.selected_plan)}</td>
                       <td className="px-4 py-3">
+                        <SubscriptionStatusBadge status={r.subscription_status || 'active'} />
+                      </td>
+                      <td className="px-4 py-3">
                         <span
                           className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                             r.challenge_accepted
@@ -148,7 +139,7 @@ export function AdminSubscribersPage() {
                       </td>
                       <td className="px-4 py-3 tabular-nums font-medium">{r.photos_count}</td>
                       <td className="px-4 py-3 text-neutral-500 text-xs whitespace-nowrap">
-                        {formatDate(r.last_seen_at)}
+                        {formatAdminDateShort(r.last_seen_at)}
                       </td>
                     </tr>
                   )

@@ -3,7 +3,6 @@ export const ONBOARDING_PAYMENT_PATHS = [
   '/onboarding/planos',
   '/onboarding/pagamento',
   '/onboarding/pagamento/sucesso',
-  '/onboarding/oferta',
 ] as const
 
 export function isOnboardingPaymentPath(pathname: string): boolean {

@@ -8,6 +8,9 @@ export type AdminProfile = {
   avatar_url: string | null
   selected_plan: string | null
   payment_complete: boolean
+  subscription_status?: string | null
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
   onboarding_complete: boolean
   challenge_id: string | null
   challenge_accepted: boolean
@@ -19,10 +22,50 @@ export type AdminProfile = {
   last_seen_at: string
 }
 
+export type AdminPayment = {
+  id: string
+  amount: number
+  plan_type: string
+  method: string
+  status: string
+  event_type: string | null
+  stripe_invoice_id: string | null
+  stripe_session_id: string | null
+  created_at: string
+  user_id: string
+  email: string | null
+  name: string | null
+}
+
+export type AdminStripeEvent = {
+  id: string
+  stripe_event_id: string
+  event_type: string
+  category: string
+  title: string
+  description: string | null
+  amount: number | null
+  currency: string
+  status: string
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  stripe_invoice_id: string | null
+  created_at: string
+  user_id: string | null
+  email: string | null
+  name: string | null
+}
+
 export type DashboardStats = {
   salesToday: number
   salesTodayCount: number
   newUsersToday: number
+  newClientsToday: number
+  renewalsToday: number
+  failedPaymentsToday: number
+  pastDueCount: number
+  activeSubscriptions: number
+  eventsToday: number
   totalSubscribers: number
   totalRevenue: number
   totalUsers: number
@@ -32,6 +75,20 @@ export type DashboardStats = {
     amount: number
     plan_type: string
     method: string
+    status: string
+    event_type: string | null
+    created_at: string
+    email: string | null
+    name: string | null
+  }[]
+  recentEvents: {
+    id: string
+    event_type: string
+    category: string
+    title: string
+    description: string | null
+    amount: number | null
+    status: string
     created_at: string
     email: string | null
     name: string | null
@@ -59,22 +116,26 @@ export async function checkIsAdmin(): Promise<boolean> {
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  if (!isAdminSession()) {
-    throw new Error('Sessão admin expirada.')
-  }
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
   return adminFetch<DashboardStats>('dashboard')
 }
 
 export async function fetchSubscribers(): Promise<AdminProfile[]> {
-  if (!isAdminSession()) {
-    throw new Error('Sessão admin expirada.')
-  }
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
   return adminFetch<AdminProfile[]>('subscribers')
 }
 
 export async function fetchAllUsers(): Promise<AdminProfile[]> {
-  if (!isAdminSession()) {
-    throw new Error('Sessão admin expirada.')
-  }
-  return adminFetch<AdminProfile[]>('subscribers?all=1')
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
+  return adminFetch<AdminProfile[]>('users')
+}
+
+export async function fetchPayments(): Promise<AdminPayment[]> {
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
+  return adminFetch<AdminPayment[]>('payments')
+}
+
+export async function fetchStripeEvents(): Promise<AdminStripeEvent[]> {
+  if (!isAdminSession()) throw new Error('Sessão admin expirada.')
+  return adminFetch<AdminStripeEvent[]>('events')
 }

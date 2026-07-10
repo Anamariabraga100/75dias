@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchDashboardStats, type DashboardStats } from '../../lib/adminApi'
 import { StatCard, formatCurrency } from './AdminLayout'
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+import {
+  AdminCard,
+  AdminEmpty,
+  AdminError,
+  AdminPageHeader,
+  EventIcon,
+  EventStatusBadge,
+  formatAdminDate,
+  PaymentStatusBadge,
+} from './adminUi'
 
 export function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -27,25 +29,15 @@ export function AdminDashboardPage() {
     return <p className="text-neutral-500 text-sm py-8">Carregando dashboard…</p>
   }
 
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-red-900/50 bg-red-950/20 p-5 text-red-300 text-sm">
-        {error}
-        <p className="text-neutral-500 text-xs mt-2">
-          Confira se rodou a migration SQL no Supabase e se SUPABASE_SERVICE_ROLE_KEY está na Vercel.
-        </p>
-      </div>
-    )
-  }
-
+  if (error) return <AdminError message={error} />
   if (!stats) return null
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-xl font-bold mb-1">Dashboard</h2>
-        <p className="text-neutral-500 text-sm">Visão geral de hoje e do negócio</p>
-      </div>
+      <AdminPageHeader
+        title="Dashboard"
+        subtitle="Visão geral de hoje — vendas, usuários e eventos Stripe"
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
@@ -55,80 +47,134 @@ export function AdminDashboardPage() {
           accent="green"
         />
         <StatCard
-          label="Novos usuários hoje"
-          value={String(stats.newUsersToday)}
-          hint="Cadastros no app"
+          label="Novos clientes"
+          value={String(stats.newClientsToday)}
+          hint="Primeiras compras hoje"
           accent="blue"
         />
         <StatCard
-          label="Assinantes"
-          value={String(stats.totalSubscribers)}
-          hint="Pagamento confirmado"
+          label="Novos usuários"
+          value={String(stats.newUsersToday)}
+          hint="Cadastros no app"
           accent="purple"
         />
         <StatCard
-          label="Receita total"
-          value={formatCurrency(stats.totalRevenue)}
-          hint={`${stats.totalUsers} usuários`}
-          accent="orange"
-        />
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <StatCard
-          label="Fotos de evolução hoje"
-          value={String(stats.photosToday)}
-          hint="Registros no espelho"
-          accent="blue"
-        />
-        <StatCard
-          label="Taxa de conversão"
-          value={
-            stats.totalUsers > 0
-              ? `${Math.round((stats.totalSubscribers / stats.totalUsers) * 100)}%`
-              : '—'
-          }
-          hint="Assinantes / usuários"
+          label="Renovações hoje"
+          value={String(stats.renewalsToday)}
+          hint="Faturas pagas (recorrência)"
           accent="green"
         />
       </div>
 
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-950/50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-neutral-800">
-          <h3 className="font-bold text-sm">Últimos pagamentos</h3>
-        </div>
-        {stats.recentPayments.length === 0 ? (
-          <p className="px-4 py-8 text-neutral-500 text-sm text-center">Nenhum pagamento registrado ainda.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-neutral-500 text-left border-b border-neutral-800">
-                  <th className="px-4 py-2.5 font-medium">Usuário</th>
-                  <th className="px-4 py-2.5 font-medium">Plano</th>
-                  <th className="px-4 py-2.5 font-medium">Valor</th>
-                  <th className="px-4 py-2.5 font-medium">Quando</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recentPayments.map((p) => (
-                  <tr key={p.id} className="border-b border-neutral-800/60 last:border-0">
-                    <td className="px-4 py-3">
-                      <p className="font-medium truncate max-w-[140px]">{p.name || '—'}</p>
-                      <p className="text-neutral-500 text-xs truncate max-w-[140px]">{p.email}</p>
-                    </td>
-                    <td className="px-4 py-3 capitalize text-neutral-300">{p.plan_type}</td>
-                    <td className="px-4 py-3 font-semibold tabular-nums">{formatCurrency(p.amount)}</td>
-                    <td className="px-4 py-3 text-neutral-500 text-xs whitespace-nowrap">
-                      {formatDate(p.created_at)}
-                    </td>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          label="Receita total"
+          value={formatCurrency(stats.totalRevenue)}
+          hint={`${stats.totalSubscribers} assinantes`}
+          accent="orange"
+        />
+        <StatCard
+          label="Assinaturas ativas"
+          value={String(stats.activeSubscriptions)}
+          hint="Status active no Stripe"
+          accent="green"
+        />
+        <StatCard
+          label="Inadimplentes"
+          value={String(stats.pastDueCount)}
+          hint={`${stats.failedPaymentsToday} falha(s) hoje`}
+          accent="orange"
+        />
+        <StatCard
+          label="Eventos hoje"
+          value={String(stats.eventsToday)}
+          hint="Webhooks Stripe"
+          accent="blue"
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <AdminCard title="Últimos pagamentos">
+          {stats.recentPayments.length === 0 ? (
+            <AdminEmpty message="Nenhum pagamento registrado ainda." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-neutral-500 text-left border-b border-neutral-800">
+                    <th className="px-4 py-2.5 font-medium">Usuário</th>
+                    <th className="px-4 py-2.5 font-medium">Status</th>
+                    <th className="px-4 py-2.5 font-medium">Valor</th>
+                    <th className="px-4 py-2.5 font-medium">Quando</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stats.recentPayments.map((p) => (
+                    <tr key={p.id} className="border-b border-neutral-800/60 last:border-0">
+                      <td className="px-4 py-3">
+                        <p className="font-medium truncate max-w-[120px]">{p.name || '—'}</p>
+                        <p className="text-neutral-500 text-xs truncate max-w-[120px]">{p.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <PaymentStatusBadge status={p.status} />
+                      </td>
+                      <td className="px-4 py-3 font-semibold tabular-nums">
+                        {formatCurrency(p.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-500 text-xs whitespace-nowrap">
+                        {formatAdminDate(p.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="px-4 py-3 border-t border-neutral-800">
+            <Link
+              to="/admin/pagamentos"
+              className="text-xs font-semibold text-sky-400 hover:text-sky-300"
+            >
+              Ver todos os pagamentos →
+            </Link>
           </div>
-        )}
-      </section>
+        </AdminCard>
+
+        <AdminCard title="Atividade Stripe">
+          {stats.recentEvents.length === 0 ? (
+            <AdminEmpty message="Nenhum evento ainda. Configure o webhook no Stripe." />
+          ) : (
+            <ul className="divide-y divide-neutral-800/80">
+              {stats.recentEvents.map((e) => (
+                <li key={e.id} className="px-4 py-3 flex gap-3">
+                  <EventIcon eventType={e.event_type} category={e.category} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm">{e.title}</p>
+                      <EventStatusBadge status={e.status} />
+                    </div>
+                    <p className="text-neutral-500 text-xs mt-0.5 line-clamp-2">{e.description}</p>
+                    <p className="text-neutral-600 text-[10px] mt-1">
+                      {e.name || e.email || '—'} · {formatAdminDate(e.created_at)}
+                      {e.amount != null && (
+                        <span className="text-neutral-400"> · {formatCurrency(e.amount)}</span>
+                      )}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="px-4 py-3 border-t border-neutral-800">
+            <Link
+              to="/admin/eventos"
+              className="text-xs font-semibold text-sky-400 hover:text-sky-300"
+            >
+              Ver todos os eventos →
+            </Link>
+          </div>
+        </AdminCard>
+      </div>
     </div>
   )
 }

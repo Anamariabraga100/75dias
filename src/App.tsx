@@ -8,7 +8,6 @@ import { CreatingPage } from './pages/onboarding/CreatingPage'
 import { PaywallPage } from './pages/onboarding/PaywallPage'
 import { PaymentPage } from './pages/onboarding/PaymentPage'
 import { PaymentSuccessPage } from './pages/onboarding/PaymentSuccessPage'
-import { OfferPage } from './pages/onboarding/OfferPage'
 import { ContractPage } from './pages/onboarding/ContractPage'
 import { ChallengeSelectPage } from './pages/onboarding/ChallengeSelectPage'
 import { StartDatePage } from './pages/onboarding/StartDatePage'
@@ -24,6 +23,9 @@ import { AdminGuard } from './components/admin/AdminGuard'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminSubscribersPage } from './pages/admin/AdminSubscribersPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { AdminPaymentsPage } from './pages/admin/AdminPaymentsPage'
+import { AdminEventsPage } from './pages/admin/AdminEventsPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { OnboardingGuard } from './components/onboarding/OnboardingGuard'
 import { OnboardingIndexRedirect } from './components/onboarding/OnboardingIndexRedirect'
@@ -48,7 +50,6 @@ export default function App() {
           <Route path="planos" element={<PaywallPage />} />
           <Route path="pagamento" element={<PaymentPage />} />
           <Route path="pagamento/sucesso" element={<PaymentSuccessPage />} />
-          <Route path="oferta" element={<OfferPage />} />
           <Route path="inicio" element={<StartDatePage />} />
           <Route path="contrato" element={<ContractPage />} />
           <Route path="desafio" element={<ChallengeSelectPage />} />
@@ -79,6 +80,9 @@ export default function App() {
           <Route element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="usuarios" element={<AdminUsersPage />} />
+            <Route path="pagamentos" element={<AdminPaymentsPage />} />
+            <Route path="eventos" element={<AdminEventsPage />} />
             <Route path="assinantes" element={<AdminSubscribersPage />} />
           </Route>
         </Route>

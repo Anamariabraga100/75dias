@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware'
 import { analyzeProfile } from './profileAnalysis'
 import { logMirrorPhotoToCloud, scheduleProfileSync, flushProfileSync } from '../lib/userSync'
 import type { SubscriptionStatus } from '../lib/subscription'
+import { normalizeProgramDay } from '../lib/demoProgress'
+import { getDayUnlockStatus } from '../lib/dayUnlock'
+import { isDayComplete } from '../lib/streak'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -107,6 +110,9 @@ interface AppState {
   startDate: StartDateOption | null
   customStartDate: string | null
   currentDay: number
+  /** ISO — quando o dia atual foi concluído (hábitos + foto). */
+  dayCompletedAt: string | null
+  programDayStartedAt: string | null
   onboardingComplete: boolean
   paymentComplete: boolean
   subscriptionStatus: SubscriptionStatus | null
@@ -141,6 +147,8 @@ interface AppState {
   markPixViewed: () => void
   setUsePromoOffer: (value: boolean) => void
   registerMirrorPhoto: (day: number, photoUrl: string) => void
+  markCurrentDayComplete: () => void
+  advanceProgramDay: (force?: boolean) => boolean
   toggleTaskCheck: (day: number, taskId: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: (ids: string[]) => void
@@ -192,6 +200,8 @@ const initialState = {
   startDate: null as StartDateOption | null,
   customStartDate: null as string | null,
   currentDay: 1,
+  dayCompletedAt: null as string | null,
+  programDayStartedAt: null as string | null,
   onboardingComplete: false,
   paymentComplete: false,
   subscriptionStatus: null as SubscriptionStatus | null,
@@ -248,10 +258,13 @@ export const useAppStore = create<AppState>()(
       setSelectedPlan: (plan) => set({ selectedPlan: plan }),
       setChallengeId: (id) => set({ challengeId: id }),
       acceptChallenge: (id) => {
+        const now = new Date().toISOString()
         set({
           challengeId: id,
           challengeAccepted: true,
           currentDay: 1,
+          dayCompletedAt: null,
+          programDayStartedAt: now,
           mirrorPhotos: {},
           taskChecksByDay: {},
         })
@@ -262,6 +275,8 @@ export const useAppStore = create<AppState>()(
           challengeId: null,
           challengeAccepted: false,
           currentDay: 1,
+          dayCompletedAt: null,
+          programDayStartedAt: null,
           mirrorPhotos: {},
           taskChecksByDay: {},
         })
@@ -307,21 +322,83 @@ export const useAppStore = create<AppState>()(
             `photo-due-${day}`,
           ],
         })
-        void logMirrorPhotoToCloud(day)
+        void logMirrorPhotoToCloud(day, photoUrl)
+        get().markCurrentDayComplete()
+      },
+      markCurrentDayComplete: () => {
+        const state = get()
+        if (!state.challengeAccepted || !state.challengeId) return
+
+        const programDay = normalizeProgramDay(state.currentDay)
+        if (
+          !isDayComplete(
+            state.challengeId,
+            programDay,
+            state.taskChecksByDay,
+            state.mirrorPhotos
+          )
+        ) {
+          return
+        }
+
+        if (state.dayCompletedAt) return
+
+        set({ dayCompletedAt: new Date().toISOString() })
+        scheduleProfileSync()
+      },
+      advanceProgramDay: (force = false) => {
+        const state = get()
+        if (!state.challengeAccepted || !state.challengeId) return false
+
+        const programDay = normalizeProgramDay(state.currentDay)
+        if (programDay >= 90) return false
+
+        const unlock = getDayUnlockStatus({
+          challengeAccepted: state.challengeAccepted,
+          challengeId: state.challengeId,
+          currentDay: state.currentDay,
+          taskChecksByDay: state.taskChecksByDay,
+          mirrorPhotos: state.mirrorPhotos,
+          dayCompletedAt: state.dayCompletedAt,
+        })
+
+        if (!force && !unlock.canAdvance) return false
+
+        const now = new Date().toISOString()
+        set({
+          currentDay: programDay + 1,
+          dayCompletedAt: null,
+          programDayStartedAt: now,
+        })
+        scheduleProfileSync()
+        return true
       },
       toggleTaskCheck: (day, taskId) => {
         const byDay = get().taskChecksByDay
         const dayChecks = byDay[day] ?? {}
         const next = !dayChecks[taskId]
         const updatedDayChecks = { ...dayChecks, [taskId]: next }
+        const state = get()
+        const challengeId = state.challengeId
+        let dayCompletedAt = state.dayCompletedAt
+
+        if (
+          challengeId &&
+          normalizeProgramDay(state.currentDay) === day &&
+          dayCompletedAt &&
+          !isDayComplete(challengeId, day, { ...byDay, [day]: updatedDayChecks }, state.mirrorPhotos)
+        ) {
+          dayCompletedAt = null
+        }
+
         set({
           taskChecksByDay: {
             ...byDay,
             [day]: updatedDayChecks,
           },
+          dayCompletedAt,
         })
         if (next) {
-          const challengeId = get().challengeId
           if (!challengeId) return
           const pending = CHALLENGES[challengeId].tasks.filter(
             (t) => t.type === 'check' && !updatedDayChecks[t.id]
@@ -334,6 +411,7 @@ export const useAppStore = create<AppState>()(
               ],
             })
           }
+          get().markCurrentDayComplete()
         }
         scheduleProfileSync()
       },
