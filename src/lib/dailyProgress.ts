@@ -1,6 +1,11 @@
 import type { AppState } from '../store/useAppStore'
+import type { ChallengeId } from '../store/useAppStore'
+import { normalizeProgramDay } from './demoProgress'
 
 export type DailyProgressSnapshot = {
+  currentDay: number
+  challengeAccepted: boolean
+  challengeId: ChallengeId | null
   taskChecksByDay: Record<number, Record<string, boolean>>
   dayCompletedAt: string | null
   programDayStartedAt: string | null
@@ -8,6 +13,7 @@ export type DailyProgressSnapshot = {
   shieldedDays: number[]
   lastShieldUsedDay: number | null
   xpAwardedKeys: string[]
+  totalXp: number
   disciplineShields: number
   readScienceCardIds: string[]
   seenTierUnlockModals: string[]
@@ -15,6 +21,9 @@ export type DailyProgressSnapshot = {
 
 export function buildDailyProgressSnapshot(state: AppState): DailyProgressSnapshot {
   return {
+    currentDay: normalizeProgramDay(state.currentDay),
+    challengeAccepted: state.challengeAccepted,
+    challengeId: state.challengeId,
     taskChecksByDay: state.taskChecksByDay,
     dayCompletedAt: state.dayCompletedAt,
     programDayStartedAt: state.programDayStartedAt,
@@ -22,6 +31,7 @@ export function buildDailyProgressSnapshot(state: AppState): DailyProgressSnapsh
     shieldedDays: state.shieldedDays,
     lastShieldUsedDay: state.lastShieldUsedDay,
     xpAwardedKeys: state.xpAwardedKeys,
+    totalXp: state.totalXp,
     disciplineShields: state.disciplineShields,
     readScienceCardIds: state.readScienceCardIds,
     seenTierUnlockModals: state.seenTierUnlockModals,
@@ -65,11 +75,21 @@ function normalizeStringArray(raw: unknown): string[] {
   return raw.filter((s): s is string => typeof s === 'string')
 }
 
+function isChallengeId(value: unknown): value is ChallengeId {
+  return value === 'iniciante' || value === 'intermediario' || value === 'implacavel'
+}
+
 export function parseDailyProgressSnapshot(raw: unknown): DailyProgressSnapshot | null {
   if (!raw || typeof raw !== 'object') return null
   const row = raw as Record<string, unknown>
 
   return {
+    currentDay:
+      typeof row.currentDay === 'number'
+        ? normalizeProgramDay(row.currentDay)
+        : 1,
+    challengeAccepted: Boolean(row.challengeAccepted),
+    challengeId: isChallengeId(row.challengeId) ? row.challengeId : null,
     taskChecksByDay: normalizeTaskChecks(row.taskChecksByDay),
     dayCompletedAt: typeof row.dayCompletedAt === 'string' ? row.dayCompletedAt : null,
     programDayStartedAt:
@@ -79,6 +99,7 @@ export function parseDailyProgressSnapshot(raw: unknown): DailyProgressSnapshot 
     lastShieldUsedDay:
       typeof row.lastShieldUsedDay === 'number' ? row.lastShieldUsedDay : null,
     xpAwardedKeys: normalizeStringArray(row.xpAwardedKeys),
+    totalXp: typeof row.totalXp === 'number' ? row.totalXp : 0,
     disciplineShields:
       typeof row.disciplineShields === 'number' ? row.disciplineShields : 0,
     readScienceCardIds: normalizeStringArray(row.readScienceCardIds),
@@ -107,6 +128,9 @@ export function mergeDailyProgress(
 
   if (localChecks === 0 && cloudChecks > 0) {
     return {
+      currentDay: Math.max(normalizeProgramDay(local.currentDay), cloud.currentDay),
+      challengeAccepted: local.challengeAccepted || cloud.challengeAccepted,
+      challengeId: local.challengeId ?? cloud.challengeId,
       taskChecksByDay: cloud.taskChecksByDay,
       dayCompletedAt: cloud.dayCompletedAt,
       programDayStartedAt: cloud.programDayStartedAt,
@@ -114,6 +138,7 @@ export function mergeDailyProgress(
       shieldedDays: cloud.shieldedDays,
       lastShieldUsedDay: cloud.lastShieldUsedDay,
       xpAwardedKeys: cloud.xpAwardedKeys,
+      totalXp: cloud.totalXp,
       disciplineShields: cloud.disciplineShields,
       readScienceCardIds: cloud.readScienceCardIds,
       seenTierUnlockModals: cloud.seenTierUnlockModals,
@@ -139,6 +164,9 @@ export function mergeDailyProgress(
   const mergedShields = [...new Set([...cloud.shieldedDays, ...local.shieldedDays])]
 
   return {
+    currentDay: Math.max(normalizeProgramDay(local.currentDay), cloud.currentDay),
+    challengeAccepted: local.challengeAccepted || cloud.challengeAccepted,
+    challengeId: local.challengeId ?? cloud.challengeId,
     taskChecksByDay: mergedTaskChecks,
     dayCompletedAt: local.dayCompletedAt ?? cloud.dayCompletedAt,
     programDayStartedAt: local.programDayStartedAt ?? cloud.programDayStartedAt,
@@ -146,6 +174,7 @@ export function mergeDailyProgress(
     shieldedDays: mergedShields,
     lastShieldUsedDay: local.lastShieldUsedDay ?? cloud.lastShieldUsedDay,
     xpAwardedKeys: mergedXpKeys,
+    totalXp: Math.max(local.totalXp, cloud.totalXp),
     disciplineShields: Math.max(local.disciplineShields, cloud.disciplineShields),
     readScienceCardIds: mergedScience,
     seenTierUnlockModals: mergedTierModals,
@@ -156,7 +185,10 @@ export function hasMeaningfulLocalProgress(state: AppState): boolean {
   return Boolean(
     state.challengeAccepted ||
       state.onboardingComplete ||
+      state.paymentComplete ||
       state.dayCompletedAt ||
+      state.totalXp > 0 ||
+      state.currentDay > 1 ||
       countCheckedHabits(state.taskChecksByDay) > 0 ||
       Object.keys(state.mirrorPhotos).length > 0
   )

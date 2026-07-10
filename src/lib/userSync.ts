@@ -1,15 +1,13 @@
-import type { ChallengeId } from '../store/useAppStore'
 import type { SubscriptionStatus } from './subscription'
-import { hasActiveAccess, parseSubscriptionStatus } from './subscription'
+import { hasActiveAccess } from './subscription'
 import { useAppStore } from '../store/useAppStore'
 import { normalizeProgramDay } from './demoProgress'
 import { supabase } from './supabase'
 import {
   buildDailyProgressSnapshot,
-  hasMeaningfulLocalProgress,
-  mergeDailyProgress,
   parseDailyProgressSnapshot,
 } from './dailyProgress'
+import { mergeCloudIntoLocal, shouldPushLocalToCloud } from './progressMerge'
 import { reconcileXpFromProgress } from './xp'
 import { waitForStoreHydration } from './storeHydration'
 
@@ -40,6 +38,8 @@ type CloudProfile = {
   challenge_accepted: boolean
   current_day: number
   discipline_score: number | null
+  total_xp: number | null
+  invested_days: number | null
   daily_progress: unknown
 }
 
@@ -50,110 +50,80 @@ function userHasPaidAccess(
   return hasActiveAccess(subscriptionStatus, paymentComplete)
 }
 
-function isChallengeId(value: string | null): value is ChallengeId {
-  return value === 'iniciante' || value === 'intermediario' || value === 'implacavel'
-}
+let hydrateInFlight: Promise<boolean> | null = null
 
-function resolveOnboardingComplete(row: CloudProfile): boolean {
-  if (!row.onboarding_complete) return false
-  if (row.discipline_score == null && !row.challenge_accepted) {
-    return false
-  }
-  return true
-}
-
-/** Carrega progresso do Supabase — evita pular onboarding por cache local. */
+/** Carrega progresso do Supabase — nuvem é a fonte de verdade após reload. */
 export async function hydrateFromCloud(): Promise<boolean> {
-  const client = getClient()
-  const userId = await getAuthUserId()
-  if (!client || !userId) return false
+  if (hydrateInFlight) return hydrateInFlight
 
-  await waitForStoreHydration()
-  const stateBefore = useAppStore.getState()
+  hydrateInFlight = (async () => {
+    const client = getClient()
+    const userId = await getAuthUserId()
+    if (!client || !userId) return false
 
-  if (stateBefore.authUserId && stateBefore.authUserId !== userId) {
-    useAppStore.getState().resetProgressForNewAccount(userId)
-  }
+    await waitForStoreHydration()
+    let local = useAppStore.getState()
 
-  const { data: profile, error } = await client
-    .from('profiles')
-    .select(
-      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, subscription_period_end, subscription_cancel_at_period_end, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score, daily_progress'
-    )
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (error) {
-    useAppStore.setState({ authUserId: userId })
-    if (hasMeaningfulLocalProgress(stateBefore)) {
-      scheduleProfileSync()
-    }
-    return false
-  }
-
-  if (!profile) {
-    useAppStore.setState({ authUserId: userId })
-    if (hasMeaningfulLocalProgress(stateBefore)) {
-      scheduleProfileSync()
-    } else {
+    if (local.authUserId && local.authUserId !== userId) {
       useAppStore.getState().resetProgressForNewAccount(userId)
+      local = useAppStore.getState()
     }
-    return false
-  }
 
-  const row = profile as CloudProfile
-  const challengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
-  const subscriptionStatus = parseSubscriptionStatus(row.subscription_status)
-  const onboardingComplete = resolveOnboardingComplete(row)
-  const keepLocalScores =
-    !row.onboarding_complete && Boolean(stateBefore.profileInsights)
-  const disciplineScore = keepLocalScores
-    ? stateBefore.disciplineScore
-    : row.discipline_score ?? stateBefore.disciplineScore
+    const { data: profile, error } = await client
+      .from('profiles')
+      .select(
+        'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, subscription_period_end, subscription_cancel_at_period_end, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score, total_xp, invested_days, daily_progress'
+      )
+      .eq('user_id', userId)
+      .maybeSingle()
 
-  const cloudProgress = parseDailyProgressSnapshot(row.daily_progress)
-  const progressPatch = mergeDailyProgress(stateBefore, cloudProgress)
+    if (error) {
+      useAppStore.setState({ authUserId: userId })
+      if (shouldPushLocalToCloud(local)) scheduleProfileSync()
+      return false
+    }
 
-  const challengeAccepted = stateBefore.challengeAccepted || row.challenge_accepted
-  const currentDay = Math.min(
-    90,
-    Math.max(
-      normalizeProgramDay(stateBefore.currentDay),
-      normalizeProgramDay(row.current_day ?? 1)
+    if (!profile) {
+      useAppStore.setState({ authUserId: userId })
+      if (shouldPushLocalToCloud(local)) {
+        scheduleProfileSync()
+      } else {
+        useAppStore.getState().resetProgressForNewAccount(userId)
+      }
+      return false
+    }
+
+    const row = profile as CloudProfile
+    const cloudProgress = parseDailyProgressSnapshot(row.daily_progress)
+    const merged = mergeCloudIntoLocal(local, row, cloudProgress)
+
+    useAppStore.setState({
+      authUserId: userId,
+      ...merged,
+    })
+
+    const afterMerge = useAppStore.getState()
+    const reconciled = reconcileXpFromProgress(afterMerge)
+    useAppStore.setState({
+      ...reconciled,
+      totalXp: Math.max(afterMerge.totalXp, reconciled.totalXp),
+    })
+
+    const afterReconcile = useAppStore.getState()
+    if (shouldPushLocalToCloud(afterReconcile)) {
+      await flushProfileSync()
+    }
+
+    const final = useAppStore.getState()
+    return Boolean(
+      final.onboardingComplete &&
+        userHasPaidAccess(final.subscriptionStatus, final.paymentComplete)
     )
-  )
-
-  useAppStore.setState({
-    authUserId: userId,
-    name: row.name?.trim() || stateBefore.name,
-    email: row.email || stateBefore.email,
-    avatarUrl: row.avatar_url ?? stateBefore.avatarUrl,
-    selectedPlan: row.selected_plan === 'monthly' ? 'monthly' : 'quarterly',
-    usePromoOffer: row.use_promo_offer,
-    paymentComplete: Boolean(row.payment_complete),
-    subscriptionStatus,
-    subscriptionPeriodEnd: row.subscription_period_end ?? null,
-    subscriptionCancelAtPeriodEnd: Boolean(row.subscription_cancel_at_period_end),
-    onboardingComplete,
-    challengeId: challengeId ?? stateBefore.challengeId,
-    challengeAccepted,
-    currentDay,
-    disciplineScore,
-    ...progressPatch,
+  })().finally(() => {
+    hydrateInFlight = null
   })
 
-  const reconciled = reconcileXpFromProgress(useAppStore.getState())
-  useAppStore.setState(reconciled)
-
-  if (hasMeaningfulLocalProgress(stateBefore)) {
-    scheduleProfileSync()
-  }
-
-  const final = useAppStore.getState()
-  return Boolean(
-    final.onboardingComplete &&
-      userHasPaidAccess(final.subscriptionStatus, final.paymentComplete)
-  )
+  return hydrateInFlight
 }
 
 /** Após pagamento — só precisa confirmar assinatura ativa (não exige onboarding no retorno). */
@@ -235,5 +205,5 @@ export function scheduleProfileSync() {
   syncTimer = setTimeout(() => {
     syncTimer = null
     void syncProfileToCloud()
-  }, 800)
+  }, 500)
 }

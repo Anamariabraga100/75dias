@@ -1,6 +1,10 @@
 let hydrated = false
 const waiters: Array<() => void> = []
 
+if (typeof window !== 'undefined') {
+  window.setTimeout(() => markStoreHydrated(), 3000)
+}
+
 export function markStoreHydrated() {
   if (hydrated) return
   hydrated = true

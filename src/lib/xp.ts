@@ -1,5 +1,6 @@
 import type { ChallengeId } from '../store/useAppStore'
 import { CHALLENGES } from '../store/useAppStore'
+import { DISCIPLINE_SHIELD_COST } from './rewards'
 import { normalizeProgramDay } from './demoProgress'
 import { isDayComplete, computeConsecutiveStreak } from './streak'
 
@@ -37,11 +38,18 @@ type XpStateSlice = {
   taskChecksByDay: Record<number, Record<string, boolean>>
   mirrorPhotos: Record<number, string>
   shieldedDays: number[]
+  disciplineShields: number
   totalXp: number
   xpAwardedKeys: string[]
   readScienceCardIds: string[]
 }
 
+function shieldXpSpent(disciplineShields: number, shieldedDays: number[]): number {
+  const shieldsEverOwned = disciplineShields + shieldedDays.length
+  return shieldsEverOwned * DISCIPLINE_SHIELD_COST
+}
+
+/** Sincroniza chaves de XP com o progresso e recalcula o saldo (sem depender do total anterior). */
 export function reconcileXpFromProgress(state: XpStateSlice): {
   totalXp: number
   xpAwardedKeys: string[]
@@ -50,7 +58,7 @@ export function reconcileXpFromProgress(state: XpStateSlice): {
     return { totalXp: state.totalXp, xpAwardedKeys: state.xpAwardedKeys }
   }
 
-  let totalXp = state.totalXp
+  let earnedXp = 0
   let xpAwardedKeys = [...state.xpAwardedKeys]
   const challengeId = state.challengeId
   const displayDay = normalizeProgramDay(state.currentDay)
@@ -59,8 +67,8 @@ export function reconcileXpFromProgress(state: XpStateSlice): {
     const checks = state.taskChecksByDay[day] ?? {}
     for (const task of CHALLENGES[challengeId].tasks) {
       if (task.type !== 'check' || !checks[task.id]) continue
-      const result = tryAwardXp(totalXp, xpAwardedKeys, `habit-${day}-${task.id}`, XP_PER_HABIT)
-      totalXp = result.totalXp
+      const result = tryAwardXp(earnedXp, xpAwardedKeys, `habit-${day}-${task.id}`, XP_PER_HABIT)
+      earnedXp = result.totalXp
       xpAwardedKeys = result.xpAwardedKeys
     }
 
@@ -73,8 +81,8 @@ export function reconcileXpFromProgress(state: XpStateSlice): {
         state.shieldedDays
       )
     ) {
-      const dayResult = tryAwardXp(totalXp, xpAwardedKeys, `day-${day}`, XP_PER_DAY)
-      totalXp = dayResult.totalXp
+      const dayResult = tryAwardXp(earnedXp, xpAwardedKeys, `day-${day}`, XP_PER_DAY)
+      earnedXp = dayResult.totalXp
       xpAwardedKeys = dayResult.xpAwardedKeys
 
       const streak = computeConsecutiveStreak(
@@ -86,33 +94,36 @@ export function reconcileXpFromProgress(state: XpStateSlice): {
       )
       if (streak >= 7 && streak % 7 === 0) {
         const streakResult = tryAwardXp(
-          totalXp,
+          earnedXp,
           xpAwardedKeys,
           `streak-${streak}`,
           XP_PER_STREAK_7
         )
-        totalXp = streakResult.totalXp
+        earnedXp = streakResult.totalXp
         xpAwardedKeys = streakResult.xpAwardedKeys
       }
 
       if (day === 30) {
-        const tier = tryAwardXp(totalXp, xpAwardedKeys, 'tier-intermediario', XP_PER_TIER_UNLOCK)
-        totalXp = tier.totalXp
+        const tier = tryAwardXp(earnedXp, xpAwardedKeys, 'tier-intermediario', XP_PER_TIER_UNLOCK)
+        earnedXp = tier.totalXp
         xpAwardedKeys = tier.xpAwardedKeys
       }
       if (day === 60) {
-        const tier = tryAwardXp(totalXp, xpAwardedKeys, 'tier-implacavel', XP_PER_TIER_UNLOCK)
-        totalXp = tier.totalXp
+        const tier = tryAwardXp(earnedXp, xpAwardedKeys, 'tier-implacavel', XP_PER_TIER_UNLOCK)
+        earnedXp = tier.totalXp
         xpAwardedKeys = tier.xpAwardedKeys
       }
     }
   }
 
   for (const cardId of state.readScienceCardIds) {
-    const science = tryAwardXp(totalXp, xpAwardedKeys, `science-${cardId}`, XP_PER_SCIENCE)
-    totalXp = science.totalXp
+    const science = tryAwardXp(earnedXp, xpAwardedKeys, `science-${cardId}`, XP_PER_SCIENCE)
+    earnedXp = science.totalXp
     xpAwardedKeys = science.xpAwardedKeys
   }
+
+  const spentOnShields = shieldXpSpent(state.disciplineShields, state.shieldedDays)
+  const totalXp = Math.max(0, earnedXp - spentOnShields)
 
   return { totalXp, xpAwardedKeys }
 }

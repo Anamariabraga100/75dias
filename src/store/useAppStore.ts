@@ -12,7 +12,6 @@ import {
   awardHabitXp,
   awardScienceXp,
   awardTierUnlockXp,
-  reconcileXpFromProgress,
 } from '../lib/xp'
 import { DISCIPLINE_SHIELD_COST, MAX_DISCIPLINE_SHIELDS, canApplyShield } from '../lib/rewards'
 
@@ -328,6 +327,7 @@ export const useAppStore = create<AppState>()(
         const seen = get().seenTierUnlockModals
         if (seen.includes(key)) return
         set({ seenTierUnlockModals: [...seen, key] })
+        scheduleProfileSync()
       },
       markScienceCardRead: (cardId) => {
         const state = get()
@@ -583,7 +583,7 @@ export const useAppStore = create<AppState>()(
           }
           get().markCurrentDayComplete()
         }
-        scheduleProfileSync()
+        void flushProfileSync()
       },
       markNotificationRead: (id) => {
         const read = get().readNotificationIds
@@ -623,37 +623,89 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: '75-dias-storage',
+      version: 2,
+      partialize: (state) => ({
+        name: state.name,
+        email: state.email,
+        avatarUrl: state.avatarUrl,
+        gender: state.gender,
+        goals: state.goals,
+        routineAnswers: state.routineAnswers,
+        disciplineScore: state.disciplineScore,
+        projectedScore: state.projectedScore,
+        radarScores: state.radarScores,
+        weakAreas: state.weakAreas,
+        recommendedChallenge: state.recommendedChallenge,
+        profileInsights: state.profileInsights,
+        signed: state.signed,
+        selectedPlan: state.selectedPlan,
+        usePromoOffer: state.usePromoOffer,
+        pixViewed: state.pixViewed,
+        startDate: state.startDate,
+        customStartDate: state.customStartDate,
+        readNotificationIds: state.readNotificationIds,
+        dismissedNotificationIds: state.dismissedNotificationIds,
+      }),
+      migrate: (persisted) => {
+        if (!persisted || typeof persisted !== 'object') return persisted
+        const raw = persisted as Record<string, unknown>
+        return {
+          name: typeof raw.name === 'string' ? raw.name : '',
+          email: typeof raw.email === 'string' ? raw.email : '',
+          avatarUrl: typeof raw.avatarUrl === 'string' ? raw.avatarUrl : null,
+          gender: raw.gender ?? null,
+          goals: Array.isArray(raw.goals) ? raw.goals : [],
+          routineAnswers: raw.routineAnswers ?? emptyRoutineAnswers,
+          disciplineScore: typeof raw.disciplineScore === 'number' ? raw.disciplineScore : 23,
+          projectedScore: typeof raw.projectedScore === 'number' ? raw.projectedScore : 92,
+          radarScores: raw.radarScores ?? defaultRadarScores,
+          weakAreas: Array.isArray(raw.weakAreas) ? raw.weakAreas : [],
+          recommendedChallenge: raw.recommendedChallenge ?? null,
+          profileInsights: raw.profileInsights ?? null,
+          signed: Boolean(raw.signed),
+          selectedPlan: raw.selectedPlan === 'monthly' ? 'monthly' : 'quarterly',
+          usePromoOffer: Boolean(raw.usePromoOffer),
+          pixViewed: Boolean(raw.pixViewed),
+          startDate: raw.startDate ?? null,
+          customStartDate: typeof raw.customStartDate === 'string' ? raw.customStartDate : null,
+          readNotificationIds: Array.isArray(raw.readNotificationIds) ? raw.readNotificationIds : [],
+          dismissedNotificationIds: Array.isArray(raw.dismissedNotificationIds)
+            ? raw.dismissedNotificationIds
+            : [],
+        }
+      },
       merge: (persisted, current) => {
         const saved = persisted as Partial<AppState> | undefined
         if (!saved) return current
-        const merged = {
+        return {
           ...current,
-          ...saved,
-          currentDay:
-            typeof saved.currentDay === 'number' && saved.currentDay >= 1
-              ? Math.min(90, saved.currentDay)
-              : 1,
-          totalXp: typeof saved.totalXp === 'number' ? saved.totalXp : 0,
-          xpAwardedKeys: Array.isArray(saved.xpAwardedKeys) ? saved.xpAwardedKeys : [],
-          disciplineShields:
-            typeof saved.disciplineShields === 'number' ? saved.disciplineShields : 0,
-          shieldedDays: Array.isArray(saved.shieldedDays) ? saved.shieldedDays : [],
-          readScienceCardIds: Array.isArray(saved.readScienceCardIds) ? saved.readScienceCardIds : [],
-          taskChecksByDay:
-            saved.taskChecksByDay && typeof saved.taskChecksByDay === 'object'
-              ? saved.taskChecksByDay
-              : {},
-          dayCompletedAt:
-            typeof saved.dayCompletedAt === 'string' ? saved.dayCompletedAt : null,
-          programDayStartedAt:
-            typeof saved.programDayStartedAt === 'string' ? saved.programDayStartedAt : null,
-          mirrorPhotos:
-            saved.mirrorPhotos && typeof saved.mirrorPhotos === 'object' ? saved.mirrorPhotos : {},
-          lastShieldUsedDay:
-            typeof saved.lastShieldUsedDay === 'number' ? saved.lastShieldUsedDay : null,
+          name: saved.name ?? current.name,
+          email: saved.email ?? current.email,
+          avatarUrl: saved.avatarUrl ?? current.avatarUrl,
+          gender: saved.gender ?? current.gender,
+          goals: Array.isArray(saved.goals) ? saved.goals : current.goals,
+          routineAnswers: saved.routineAnswers ?? current.routineAnswers,
+          disciplineScore:
+            typeof saved.disciplineScore === 'number' ? saved.disciplineScore : current.disciplineScore,
+          projectedScore:
+            typeof saved.projectedScore === 'number' ? saved.projectedScore : current.projectedScore,
+          radarScores: saved.radarScores ?? current.radarScores,
+          weakAreas: Array.isArray(saved.weakAreas) ? saved.weakAreas : current.weakAreas,
+          recommendedChallenge: saved.recommendedChallenge ?? current.recommendedChallenge,
+          profileInsights: saved.profileInsights ?? current.profileInsights,
+          signed: Boolean(saved.signed ?? current.signed),
+          selectedPlan: saved.selectedPlan === 'monthly' ? 'monthly' : current.selectedPlan,
+          usePromoOffer: Boolean(saved.usePromoOffer ?? current.usePromoOffer),
+          pixViewed: Boolean(saved.pixViewed ?? current.pixViewed),
+          startDate: saved.startDate ?? current.startDate,
+          customStartDate: saved.customStartDate ?? current.customStartDate,
+          readNotificationIds: Array.isArray(saved.readNotificationIds)
+            ? saved.readNotificationIds
+            : current.readNotificationIds,
+          dismissedNotificationIds: Array.isArray(saved.dismissedNotificationIds)
+            ? saved.dismissedNotificationIds
+            : current.dismissedNotificationIds,
         }
-        const reconciled = reconcileXpFromProgress(merged)
-        return { ...merged, ...reconciled }
       },
       onRehydrateStorage: () => () => {
         markStoreHydrated()

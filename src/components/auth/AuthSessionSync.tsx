@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { navigateAfterAuth, restoreAuthSession, applySessionToStore } from '../../lib/auth'
 import { shouldRedirectAuthenticatedFrom } from '../../lib/onboardingRoute'
-import { hydrateFromCloud, scheduleProfileSync } from '../../lib/userSync'
+import { hydrateFromCloud } from '../../lib/userSync'
 import { waitForStoreHydration } from '../../lib/storeHydration'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../store/useAppStore'
@@ -23,13 +23,8 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
 
     const bootstrap = async () => {
       await waitForStoreHydration()
-      const session = await restoreAuthSession()
+      await restoreAuthSession()
       if (!active) return
-
-      if (session) {
-        scheduleProfileSync()
-      }
-
       if (active) setReady(true)
     }
 
@@ -43,7 +38,6 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       if (session) {
         applySessionToStore(session)
         await hydrateFromCloud()
-        scheduleProfileSync()
 
         if (event === 'SIGNED_IN' && shouldRedirectAuthenticatedFrom(window.location.pathname)) {
           await navigateAfterAuth(navigate)

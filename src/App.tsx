@@ -18,6 +18,7 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { EmailAuthPage } from './pages/EmailAuthPage'
 
 import { AuthSessionSync } from './components/auth/AuthSessionSync'
+import { ProfileSyncGuard } from './components/auth/ProfileSyncGuard'
 
 import { AdminGuard } from './components/admin/AdminGuard'
 import { AdminLayout } from './pages/admin/AdminLayout'
@@ -36,6 +37,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthSessionSync>
+        <ProfileSyncGuard />
         <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
