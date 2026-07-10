@@ -10,7 +10,6 @@ import { ProgressXpCard } from '../../components/app/progress/ProgressXpCard'
 import { ProgressSummaryCard } from '../../components/app/progress/ProgressSummaryCard'
 import { useAppStore } from '../../store/useAppStore'
 import { getDisplayDay } from '../../lib/demoProgress'
-import { countCompletedDays } from '../../lib/homeMetrics'
 import { computePeakStreak } from '../../lib/progressPage'
 
 export function ProgressPage() {
@@ -27,10 +26,6 @@ export function ProgressPage() {
   } = useAppStore()
 
   const displayDay = getDisplayDay(challengeAccepted, currentDay)
-  const completedDays =
-    challengeId && challengeAccepted
-      ? countCompletedDays(challengeId, displayDay, taskChecksByDay, mirrorPhotos)
-      : 0
 
   const recordDays =
     challengeId && challengeAccepted
@@ -61,11 +56,7 @@ export function ProgressPage() {
 
         {challengeAccepted ? (
           <>
-            <JourneyTimeline
-              challengeId={challengeId}
-              completedDays={completedDays}
-              displayDay={displayDay}
-            />
+            <JourneyTimeline challengeId={challengeId} displayDay={displayDay} />
 
             <ProgressNextConquest displayDay={displayDay} />
 

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { analyzeProfile } from './profileAnalysis'
 import { logMirrorPhotoToCloud, scheduleProfileSync, flushProfileSync } from '../lib/userSync'
+import { markStoreHydrated } from '../lib/storeHydration'
 import type { SubscriptionStatus } from '../lib/subscription'
 import { normalizeProgramDay } from '../lib/demoProgress'
 import { getDayUnlockStatus } from '../lib/dayUnlock'
@@ -104,7 +105,7 @@ export interface RadarScores {
   foco: number
 }
 
-interface AppState {
+export interface AppState {
   name: string
   email: string
   avatarUrl: string | null
@@ -638,11 +639,24 @@ export const useAppStore = create<AppState>()(
             typeof saved.disciplineShields === 'number' ? saved.disciplineShields : 0,
           shieldedDays: Array.isArray(saved.shieldedDays) ? saved.shieldedDays : [],
           readScienceCardIds: Array.isArray(saved.readScienceCardIds) ? saved.readScienceCardIds : [],
+          taskChecksByDay:
+            saved.taskChecksByDay && typeof saved.taskChecksByDay === 'object'
+              ? saved.taskChecksByDay
+              : {},
+          dayCompletedAt:
+            typeof saved.dayCompletedAt === 'string' ? saved.dayCompletedAt : null,
+          programDayStartedAt:
+            typeof saved.programDayStartedAt === 'string' ? saved.programDayStartedAt : null,
+          mirrorPhotos:
+            saved.mirrorPhotos && typeof saved.mirrorPhotos === 'object' ? saved.mirrorPhotos : {},
           lastShieldUsedDay:
             typeof saved.lastShieldUsedDay === 'number' ? saved.lastShieldUsedDay : null,
         }
         const reconciled = reconcileXpFromProgress(merged)
         return { ...merged, ...reconciled }
+      },
+      onRehydrateStorage: () => () => {
+        markStoreHydrated()
       },
     }
   )

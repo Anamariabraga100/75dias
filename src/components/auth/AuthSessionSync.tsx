@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { navigateAfterAuth, restoreAuthSession, applySessionToStore } from '../../lib/auth'
 import { shouldRedirectAuthenticatedFrom } from '../../lib/onboardingRoute'
 import { hydrateFromCloud, scheduleProfileSync } from '../../lib/userSync'
+import { waitForStoreHydration } from '../../lib/storeHydration'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -21,6 +22,7 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     let active = true
 
     const bootstrap = async () => {
+      await waitForStoreHydration()
       const session = await restoreAuthSession()
       if (!active) return
 

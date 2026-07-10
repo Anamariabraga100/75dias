@@ -41,7 +41,7 @@ export function ProgressSummaryCard({ displayDay, challengeId }: ProgressSummary
         />
       </div>
 
-      <p className="text-[10px] text-neutral-600 text-center mt-2">Nível {level}</p>
+      <p className="text-[10px] text-neutral-600 text-center mt-2">Desafio {level}</p>
     </section>
   )
 }

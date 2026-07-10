@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Bell, Clock, Shield, Zap } from 'lucide-react'
+import { Bell, Shield, Zap } from 'lucide-react'
 import { Logo } from '../ui/Logo'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { useAppStore } from '../../store/useAppStore'
@@ -9,9 +9,7 @@ import { XpModal } from '../app/XpModal'
 import { countUnreadNotifications } from '../../lib/notifications'
 import { UserAvatar } from '../ui/UserAvatar'
 import { getDisplayDay } from '../../lib/demoProgress'
-import { formatMidnightClock } from '../../lib/dayUnlock'
 import { formatXp } from '../../lib/xp'
-import { useMidnightCountdown } from '../../hooks/useMidnightCountdown'
 
 function StreakModal({
   days,
@@ -104,8 +102,6 @@ export function AppHeader() {
     taskChecksByDay,
     readNotificationIds,
     dismissedNotificationIds,
-    dayCompletedAt,
-    shieldedDays,
     totalXp,
     disciplineShields,
   } = useAppStore()
@@ -118,16 +114,6 @@ export function AppHeader() {
 
   const programDay = getDisplayDay(challengeAccepted, currentDay)
   const investedDays = challengeAccepted ? programDay : 0
-
-  const { showCountdown, remainingMs } = useMidnightCountdown({
-    challengeAccepted,
-    challengeId,
-    currentDay,
-    taskChecksByDay,
-    mirrorPhotos,
-    dayCompletedAt,
-    shieldedDays,
-  })
 
   const unreadCount = useMemo(
     () =>
@@ -191,15 +177,6 @@ export function AppHeader() {
                     label="escudo"
                     accent="sky"
                     onClick={() => setXpOpen(true)}
-                  />
-                )}
-                {showCountdown && (
-                  <HeaderStatPill
-                    icon={<Clock size={13} className="text-sky-400" />}
-                    value={formatMidnightClock(remainingMs)}
-                    label="próx. dia"
-                    accent="sky"
-                    disabled
                   />
                 )}
               </>

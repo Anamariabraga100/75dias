@@ -5,7 +5,6 @@ import { getDisplayDay, normalizeProgramDay } from '../../../lib/demoProgress'
 import { useMidnightCountdown } from '../../../hooks/useMidnightCountdown'
 import { isPhotoDay } from '../../../lib/photoSchedule'
 import {
-  countCompletedDays,
   getAchievementStatuses,
   getMotivationSubtitle,
   getNextAchievement,
@@ -32,7 +31,6 @@ export function ActiveChallengeHome() {
     taskChecksByDay,
     dayCompletedAt,
     advanceProgramDay,
-    evolveToTier,
     shieldedDays,
     disciplineShields,
     lastShieldUsedDay,
@@ -72,7 +70,6 @@ export function ActiveChallengeHome() {
     shieldedDays,
   })
 
-  const completedDays = countCompletedDays(challengeId, displayDay, taskChecksByDay, mirrorPhotos)
   const achievements = getAchievementStatuses(displayDay, allDone)
   const nextAchievement = getNextAchievement(achievements)
   const streakDays = displayDay
@@ -92,12 +89,7 @@ export function ActiveChallengeHome() {
         challengeId={challengeId}
       />
 
-      <HomeLevelProgress
-        challengeId={challengeId}
-        displayDay={displayDay}
-        completedDays={completedDays}
-        onEvolve={evolveToTier}
-      />
+      <HomeLevelProgress challengeId={challengeId} displayDay={displayDay} />
 
       <HomeDailyMission
         programDay={programDay}

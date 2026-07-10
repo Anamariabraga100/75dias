@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../../../store/useAppStore'
-import { getPendingUnlockModal } from '../../../lib/progressionTiers'
-import { TierUnlockModal } from './TierUnlockModal'
 import { Reset90CompleteModal } from './Reset90CompleteModal'
 import { formatPreferredName } from '../../../lib/displayName'
 import { countCompletedDays } from '../../../lib/homeMetrics'
@@ -22,14 +20,12 @@ export function TierUnlockWatcher({
   const {
     name,
     seenTierUnlockModals,
-    evolveToTier,
     markTierUnlockSeen,
     mirrorPhotos,
     taskChecksByDay,
     challengeAccepted,
   } = useAppStore()
 
-  const [unlockKind, setUnlockKind] = useState<'30' | '60' | null>(null)
   const [showComplete, setShowComplete] = useState(false)
 
   const completedDays = countCompletedDays(
@@ -40,27 +36,14 @@ export function TierUnlockWatcher({
   )
 
   useEffect(() => {
-    const pending = getPendingUnlockModal(programDay, allDone, seenTierUnlockModals)
-    if (pending === '30' || pending === '60') {
-      setUnlockKind(pending)
-    } else if (pending === '90') {
+    if (
+      programDay === 90 &&
+      allDone &&
+      !seenTierUnlockModals.includes('unlock-90')
+    ) {
       setShowComplete(true)
     }
   }, [programDay, allDone, seenTierUnlockModals])
-
-  const handleEvolve = () => {
-    if (!unlockKind) return
-    const target = unlockKind === '30' ? 'intermediario' : 'implacavel'
-    evolveToTier(target)
-    markTierUnlockSeen(`unlock-${unlockKind}`)
-    setUnlockKind(null)
-  }
-
-  const handleStay = () => {
-    if (!unlockKind) return
-    markTierUnlockSeen(`unlock-${unlockKind}`)
-    setUnlockKind(null)
-  }
 
   const handleCompleteClose = () => {
     markTierUnlockSeen('unlock-90')
@@ -71,9 +54,6 @@ export function TierUnlockWatcher({
 
   return (
     <>
-      {unlockKind && (
-        <TierUnlockModal kind={unlockKind} onEvolve={handleEvolve} onStay={handleStay} />
-      )}
       {showComplete && (
         <Reset90CompleteModal
           displayName={formatPreferredName(name)}

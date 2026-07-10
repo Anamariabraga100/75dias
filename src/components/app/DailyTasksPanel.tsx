@@ -278,9 +278,14 @@ export function DailyTasksPanel({
     </div>
   )
 
-  const renderTasks = () => (
+  const renderTasks = () => {
+    const visibleTasks = challenge.tasks.filter(
+      (task) => task.id !== 'photo' || photoRequired
+    )
+
+    return (
     <div className="space-y-2.5">
-      {challenge.tasks.map((task) => {
+      {visibleTasks.map((task) => {
         const colorClass = TASK_COLORS[task.id] ?? 'bg-neutral-600'
         const missionTag = TASK_MISSION_TAGS[task.id]
         const done =
@@ -450,7 +455,8 @@ export function DailyTasksPanel({
         )
       })}
     </div>
-  )
+    )
+  }
 
   return (
     <div className="animate-fade-in">

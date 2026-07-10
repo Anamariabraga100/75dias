@@ -4,6 +4,14 @@ import { hasActiveAccess, parseSubscriptionStatus } from './subscription'
 import { useAppStore } from '../store/useAppStore'
 import { normalizeProgramDay } from './demoProgress'
 import { supabase } from './supabase'
+import {
+  buildDailyProgressSnapshot,
+  hasMeaningfulLocalProgress,
+  mergeDailyProgress,
+  parseDailyProgressSnapshot,
+} from './dailyProgress'
+import { reconcileXpFromProgress } from './xp'
+import { waitForStoreHydration } from './storeHydration'
 
 function getClient() {
   if (!supabase) return null
@@ -32,6 +40,7 @@ type CloudProfile = {
   challenge_accepted: boolean
   current_day: number
   discipline_score: number | null
+  daily_progress: unknown
 }
 
 function userHasPaidAccess(
@@ -47,7 +56,6 @@ function isChallengeId(value: string | null): value is ChallengeId {
 
 function resolveOnboardingComplete(row: CloudProfile): boolean {
   if (!row.onboarding_complete) return false
-  // Perfil criado por sync antecipado — quiz ainda não foi feito
   if (row.discipline_score == null && !row.challenge_accepted) {
     return false
   }
@@ -60,6 +68,7 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const userId = await getAuthUserId()
   if (!client || !userId) return false
 
+  await waitForStoreHydration()
   const stateBefore = useAppStore.getState()
 
   if (stateBefore.authUserId && stateBefore.authUserId !== userId) {
@@ -69,18 +78,26 @@ export async function hydrateFromCloud(): Promise<boolean> {
   const { data: profile, error } = await client
     .from('profiles')
     .select(
-      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, subscription_period_end, subscription_cancel_at_period_end, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score'
+      'name, email, avatar_url, selected_plan, use_promo_offer, payment_complete, subscription_status, subscription_period_end, subscription_cancel_at_period_end, onboarding_complete, challenge_id, challenge_accepted, current_day, discipline_score, daily_progress'
     )
     .eq('user_id', userId)
     .maybeSingle()
 
   if (error) {
-    useAppStore.getState().resetProgressForNewAccount(userId)
+    useAppStore.setState({ authUserId: userId })
+    if (hasMeaningfulLocalProgress(stateBefore)) {
+      scheduleProfileSync()
+    }
     return false
   }
 
   if (!profile) {
-    useAppStore.getState().resetProgressForNewAccount(userId)
+    useAppStore.setState({ authUserId: userId })
+    if (hasMeaningfulLocalProgress(stateBefore)) {
+      scheduleProfileSync()
+    } else {
+      useAppStore.getState().resetProgressForNewAccount(userId)
+    }
     return false
   }
 
@@ -94,6 +111,18 @@ export async function hydrateFromCloud(): Promise<boolean> {
     ? stateBefore.disciplineScore
     : row.discipline_score ?? stateBefore.disciplineScore
 
+  const cloudProgress = parseDailyProgressSnapshot(row.daily_progress)
+  const progressPatch = mergeDailyProgress(stateBefore, cloudProgress)
+
+  const challengeAccepted = stateBefore.challengeAccepted || row.challenge_accepted
+  const currentDay = Math.min(
+    90,
+    Math.max(
+      normalizeProgramDay(stateBefore.currentDay),
+      normalizeProgramDay(row.current_day ?? 1)
+    )
+  )
+
   useAppStore.setState({
     authUserId: userId,
     name: row.name?.trim() || stateBefore.name,
@@ -106,11 +135,19 @@ export async function hydrateFromCloud(): Promise<boolean> {
     subscriptionPeriodEnd: row.subscription_period_end ?? null,
     subscriptionCancelAtPeriodEnd: Boolean(row.subscription_cancel_at_period_end),
     onboardingComplete,
-    challengeId,
-    challengeAccepted: row.challenge_accepted,
-    currentDay: Math.min(90, Math.max(1, row.current_day ?? 1)),
+    challengeId: challengeId ?? stateBefore.challengeId,
+    challengeAccepted,
+    currentDay,
     disciplineScore,
+    ...progressPatch,
   })
+
+  const reconciled = reconcileXpFromProgress(useAppStore.getState())
+  useAppStore.setState(reconciled)
+
+  if (hasMeaningfulLocalProgress(stateBefore)) {
+    scheduleProfileSync()
+  }
 
   const final = useAppStore.getState()
   return Boolean(
@@ -153,13 +190,13 @@ export async function syncProfileToCloud() {
       invested_days: investedDays,
       photos_count: photosCount,
       total_xp: state.totalXp,
+      daily_progress: buildDailyProgressSnapshot(state),
       updated_at: new Date().toISOString(),
       last_seen_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
   )
 }
-
 
 export async function logMirrorPhotoToCloud(day: number, photoUrl?: string) {
   const client = getClient()

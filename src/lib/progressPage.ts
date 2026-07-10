@@ -4,8 +4,8 @@ import { computeConsecutiveStreak } from './streak'
 export const PROGRESS_CONQUESTS = [
   { day: 7, emoji: '🌱', title: 'Primeira semana', hint: 'sua primeira grande vitória' },
   { day: 15, emoji: '🎯', title: 'Hábito criado', hint: 'disciplina virando rotina' },
-  { day: 30, emoji: '💪', title: 'Nível Dominante', hint: 'novo nível desbloqueado' },
-  { day: 60, emoji: '🔥', title: 'Nível Implacável', hint: 'o nível máximo' },
+  { day: 30, emoji: '💪', title: '1 mês de disciplina', hint: 'um mês inteiro no desafio' },
+  { day: 60, emoji: '🔥', title: 'Metade do caminho', hint: '60 dias de consistência' },
   { day: 90, emoji: '🏆', title: 'Reset90 completo', hint: 'você venceu' },
 ] as const
 

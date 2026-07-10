@@ -10,6 +10,7 @@ import {
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { hydrateFromCloud, flushProfileSync } from './userSync'
+import { waitForStoreHydration } from './storeHydration'
 import { getPostAuthPath, isSafeInternalPath } from './onboardingRoute'
 import { hasActiveAccess } from './subscription'
 
@@ -298,6 +299,7 @@ export async function establishAuthSession(
   }
 
   applySessionToStore(session)
+  await waitForStoreHydration()
   await hydrateFromCloud()
   await flushProfileSync()
   return session
@@ -314,6 +316,7 @@ export async function navigateAfterAuth(
   navigate: NavigateFunction,
   options?: { returning?: boolean; next?: string }
 ) {
+  await waitForStoreHydration()
   await hydrateFromCloud()
 
   if (options?.next && isSafeInternalPath(options.next)) {
@@ -348,6 +351,7 @@ export async function restoreAuthSession() {
   if (!session) return null
 
   applySessionToStore(session)
+  await waitForStoreHydration()
   await hydrateFromCloud()
   return session
 }

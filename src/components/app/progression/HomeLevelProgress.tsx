@@ -1,38 +1,43 @@
 import type { ChallengeId } from '../../../store/useAppStore'
-import { getLevelProgress, getNextTier, isTierUnlocked, TIER_INFO, THEME_BAR } from '../../../lib/progressionTiers'
+import { getChallengeRecommendation } from '../../../lib/challengeRecommendation'
+import { LEVEL_META } from '../../ui/ChallengeLevelCard'
+import { TIER_INFO, THEME_BAR } from '../../../lib/progressionTiers'
+import { getChallengeJourneyProgress } from '../../../lib/journeyMilestones'
 
 type HomeLevelProgressProps = {
   challengeId: ChallengeId
   displayDay: number
-  completedDays: number
-  onEvolve?: (tier: ChallengeId) => void
 }
 
-export function HomeLevelProgress({
-  challengeId,
-  displayDay,
-  completedDays,
-  onEvolve,
-}: HomeLevelProgressProps) {
+export function HomeLevelProgress({ challengeId, displayDay }: HomeLevelProgressProps) {
   const tier = TIER_INFO[challengeId]
-  const progress = getLevelProgress(displayDay, challengeId)
+  const meta = LEVEL_META[challengeId]
+  const challengeTitle = getChallengeRecommendation(challengeId).challengeTitle
+  const progress = getChallengeJourneyProgress(displayDay)
   const barGradient = THEME_BAR[tier.theme]
-  const nextTierId = getNextTier(challengeId)
-  const canEvolve =
-    nextTierId &&
-    isTierUnlocked(nextTierId, completedDays) &&
-    challengeId !== nextTierId &&
-    onEvolve
 
   return (
     <section className="home-section">
       <div className="rounded-2xl border border-neutral-800/80 bg-[#111111] p-4">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">
-          Nível atual
-        </p>
-        <p className="text-lg font-black text-white mb-3">
-          {tier.emoji} {tier.label}
-        </p>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1">
+              Desafio escolhido
+            </p>
+            <p className="text-lg font-black text-white leading-tight">{challengeTitle}</p>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {tier.emoji} Nível {meta.level} · {meta.intensity}
+            </p>
+          </div>
+          <div className="flex gap-1 shrink-0 pt-1">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className={`h-1.5 w-4 rounded-full ${n <= meta.level ? 'bg-white/80' : 'bg-white/20'}`}
+              />
+            ))}
+          </div>
+        </div>
 
         <div className="h-2.5 rounded-full bg-neutral-800 overflow-hidden mb-2">
           <div
@@ -41,35 +46,32 @@ export function HomeLevelProgress({
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs mb-3">
+        <div className="flex items-center justify-between text-xs">
           <span className="text-neutral-400 tabular-nums">
-            {progress.currentDay} / {progress.targetDay} dias
+            Dia {progress.currentDay} / {progress.targetDay}
           </span>
           <span className="text-neutral-500 tabular-nums">{progress.pct}%</span>
         </div>
 
-        {progress.daysLeft > 0 && (
-          <div className="pt-3 border-t border-neutral-800/80">
+        {progress.nextNode && progress.daysLeft > 0 && (
+          <div className="pt-3 mt-3 border-t border-neutral-800/80">
             <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500 mb-0.5">
-              Próximo nível
+              Próximo marco
             </p>
             <p className="text-sm font-semibold text-white">
-              {progress.nextEmoji} {progress.nextLabel}
+              {progress.nextNode.emoji} {progress.nextNode.label}
             </p>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Faltam {progress.daysLeft} dia{progress.daysLeft !== 1 ? 's' : ''}
+              Dia {progress.nextNode.day} · faltam {progress.nextNodeDaysLeft} dia
+              {progress.nextNodeDaysLeft !== 1 ? 's' : ''}
             </p>
           </div>
         )}
 
-        {canEvolve && nextTierId && (
-          <button
-            type="button"
-            onClick={() => onEvolve(nextTierId)}
-            className="mt-3 w-full py-2.5 rounded-xl border border-accent-green/40 bg-accent-green/10 text-accent-green text-sm font-bold hover:bg-accent-green/15 transition-colors"
-          >
-            Evoluir para {TIER_INFO[nextTierId].label} ⭐
-          </button>
+        {progress.daysLeft === 0 && (
+          <div className="pt-3 mt-3 border-t border-neutral-800/80">
+            <p className="text-sm font-semibold text-accent-green">🏆 Reset90 completo!</p>
+          </div>
         )}
       </div>
     </section>
