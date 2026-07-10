@@ -32,7 +32,7 @@ export function AdminDashboardPage() {
       <div className="rounded-2xl border border-red-900/50 bg-red-950/20 p-5 text-red-300 text-sm">
         {error}
         <p className="text-neutral-500 text-xs mt-2">
-          Confira se rodou a migration SQL no Supabase e se sua conta tem is_admin = true.
+          Confira se rodou a migration SQL no Supabase e se SUPABASE_SERVICE_ROLE_KEY está na Vercel.
         </p>
       </div>
     )

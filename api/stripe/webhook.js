@@ -47,7 +47,7 @@ async function handleCheckoutCompleted(session) {
     amount: amountPaid,
     sessionId: session.id,
     invoiceId: typeof session.invoice === 'string' ? session.invoice : session.invoice?.id,
-    method: session.payment_method_types?.includes('pix') ? 'pix' : 'card',
+    method: 'card',
   })
 }
 
@@ -79,7 +79,7 @@ async function handleInvoicePaid(invoice) {
     amount: invoice.amount_paid ? invoice.amount_paid / 100 : undefined,
     sessionId: null,
     invoiceId: invoice.id,
-    method: invoice.payment_intent ? 'card' : 'pix',
+    method: 'card',
   })
 }
 

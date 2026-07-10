@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { isLocalAdminSession } from './adminDev'
+import { getAdminPasswordFromEnv } from './adminCredentials'
+import { isAdminSession } from './adminSession'
 
 export type AdminProfile = {
   user_id: string
@@ -38,147 +38,43 @@ export type DashboardStats = {
   }[]
 }
 
-function emptyDashboardStats(): DashboardStats {
-  return {
-    salesToday: 0,
-    salesTodayCount: 0,
-    newUsersToday: 0,
-    totalSubscribers: 0,
-    totalRevenue: 0,
-    totalUsers: 0,
-    photosToday: 0,
-    recentPayments: [],
+async function adminFetch<T>(path: string): Promise<T> {
+  const password = getAdminPasswordFromEnv()
+  if (!password) throw new Error('VITE_ADMIN_PASSWORD não configurada.')
+
+  const res = await fetch(`/api/admin/${path}`, {
+    headers: { 'X-Admin-Password': password },
+  })
+
+  const payload = (await res.json().catch(() => ({}))) as T & { error?: string }
+  if (!res.ok) {
+    throw new Error(payload.error || 'Não foi possível carregar dados do admin.')
   }
-}
 
-function startOfTodayIso() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
-}
-
-function assertClient() {
-  if (!supabase) throw new Error('Supabase não configurado.')
-  return supabase
+  return payload
 }
 
 export async function checkIsAdmin(): Promise<boolean> {
-  if (isLocalAdminSession()) return true
-
-  const client = assertClient()
-  const { data: userData } = await client.auth.getUser()
-  const userId = userData.user?.id
-  if (!userId) return false
-
-  const { data, error } = await client
-    .from('profiles')
-    .select('is_admin')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (error) return false
-  return Boolean(data?.is_admin)
+  return isAdminSession()
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const client = assertClient()
-  const { data: sessionData } = await client.auth.getSession()
-  if (isLocalAdminSession() && !sessionData.session) {
-    return emptyDashboardStats()
+  if (!isAdminSession()) {
+    throw new Error('Sessão admin expirada.')
   }
-
-  const today = startOfTodayIso()
-
-  const [paymentsTodayRes, paymentsAllRes, profilesRes, newTodayRes, photosTodayRes, recentRes] =
-    await Promise.all([
-      client.from('payments').select('amount').gte('created_at', today).eq('status', 'completed'),
-      client.from('payments').select('amount').eq('status', 'completed'),
-      client.from('profiles').select('user_id', { count: 'exact', head: true }),
-      client.from('profiles').select('user_id', { count: 'exact', head: true }).gte('created_at', today),
-      client
-        .from('mirror_photo_logs')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', today),
-      client
-        .from('payments')
-        .select('id, amount, plan_type, method, created_at, user_id')
-        .order('created_at', { ascending: false })
-        .limit(8),
-    ])
-
-  const salesToday = (paymentsTodayRes.data ?? []).reduce((s, p) => s + Number(p.amount), 0)
-  const totalRevenue = (paymentsAllRes.data ?? []).reduce((s, p) => s + Number(p.amount), 0)
-
-  const { count: subscribers } = await client
-    .from('profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('payment_complete', true)
-
-  const userIds = [...new Set((recentRes.data ?? []).map((p) => p.user_id))]
-  let profileMap = new Map<string, { email: string | null; name: string | null }>()
-  if (userIds.length > 0) {
-    const { data: profs } = await client
-      .from('profiles')
-      .select('user_id, email, name')
-      .in('user_id', userIds)
-    profileMap = new Map((profs ?? []).map((p) => [p.user_id, { email: p.email, name: p.name }]))
-  }
-
-  return {
-    salesToday,
-    salesTodayCount: paymentsTodayRes.data?.length ?? 0,
-    newUsersToday: newTodayRes.count ?? 0,
-    totalSubscribers: subscribers ?? 0,
-    totalRevenue,
-    totalUsers: profilesRes.count ?? 0,
-    photosToday: photosTodayRes.count ?? 0,
-    recentPayments: (recentRes.data ?? []).map((p) => ({
-      id: p.id,
-      amount: Number(p.amount),
-      plan_type: p.plan_type,
-      method: p.method,
-      created_at: p.created_at,
-      email: profileMap.get(p.user_id)?.email ?? null,
-      name: profileMap.get(p.user_id)?.name ?? null,
-    })),
-  }
+  return adminFetch<DashboardStats>('dashboard')
 }
 
 export async function fetchSubscribers(): Promise<AdminProfile[]> {
-  if (isLocalAdminSession()) {
-    const client = assertClient()
-    const { data: sessionData } = await client.auth.getSession()
-    if (!sessionData.session) return []
+  if (!isAdminSession()) {
+    throw new Error('Sessão admin expirada.')
   }
-
-  const client = assertClient()
-  const { data, error } = await client
-    .from('profiles')
-    .select(
-      'user_id, email, name, avatar_url, selected_plan, payment_complete, onboarding_complete, challenge_id, challenge_accepted, current_day, invested_days, photos_count, created_at, updated_at, last_seen_at'
-    )
-    .eq('payment_complete', true)
-    .order('last_seen_at', { ascending: false })
-
-  if (error) throw error
-  return (data ?? []) as AdminProfile[]
+  return adminFetch<AdminProfile[]>('subscribers')
 }
 
 export async function fetchAllUsers(): Promise<AdminProfile[]> {
-  if (isLocalAdminSession()) {
-    const client = assertClient()
-    const { data: sessionData } = await client.auth.getSession()
-    if (!sessionData.session) return []
+  if (!isAdminSession()) {
+    throw new Error('Sessão admin expirada.')
   }
-
-  const client = assertClient()
-  const { data, error } = await client
-    .from('profiles')
-    .select(
-      'user_id, email, name, avatar_url, selected_plan, payment_complete, onboarding_complete, challenge_id, challenge_accepted, current_day, invested_days, photos_count, created_at, updated_at, last_seen_at'
-    )
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data ?? []) as AdminProfile[]
+  return adminFetch<AdminProfile[]>('subscribers?all=1')
 }

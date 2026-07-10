@@ -73,7 +73,7 @@ export function OfferPage() {
             Continuar — ECONOMIZE {PRICING.promoQuarterly.discountPercent}%
           </Button>
           <p className="text-neutral-500 text-xs text-center mt-3">
-            Apenas {PRICING.promoQuarterly.displayTotal}/trimestre · Pix e cartão
+            Apenas {PRICING.promoQuarterly.displayTotal}/trimestre · cartão
           </p>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CreditCard, Lock, QrCode, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CreditCard, Lock, ShieldCheck, Smartphone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { InputField } from '../../components/ui/InputField'
@@ -214,7 +214,7 @@ export function PaymentPage() {
               </div>
               <div>
                 <p className="font-semibold text-sm">Pagamento seguro via Stripe</p>
-                <p className="text-neutral-500 text-xs">Cartão ou Pix · assinatura recorrente</p>
+                <p className="text-neutral-500 text-xs">Cartão · Apple Pay · Google Pay</p>
               </div>
             </div>
 
@@ -224,8 +224,8 @@ export function PaymentPage() {
                 <span className="text-xs text-neutral-300">Cartão</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl border border-neutral-800 px-3 py-2.5">
-                <QrCode size={16} className="text-accent-green shrink-0" />
-                <span className="text-xs text-neutral-300">Pix</span>
+                <Smartphone size={16} className="text-accent-green shrink-0" />
+                <span className="text-xs text-neutral-300">Apple / Google Pay</span>
               </div>
             </div>
 
