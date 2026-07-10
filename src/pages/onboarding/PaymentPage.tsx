@@ -1,35 +1,130 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, CreditCard, Lock, QrCode, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
+import { InputField } from '../../components/ui/InputField'
+import { PasswordField } from '../../components/ui/PasswordField'
 import { MoneyBackGuarantee } from '../../components/ui/MoneyBackGuarantee'
 import { useAppStore } from '../../store/useAppStore'
 import { getCheckoutPrice } from '../../lib/pricing'
+import {
+  applySessionToStore,
+  EmailConfirmationRequiredError,
+  EmailLinkedToGoogleError,
+  establishAuthSession,
+  formatAuthError,
+  isValidEmail,
+  restoreAuthSession,
+  signInWithEmail,
+  signUpWithEmail,
+} from '../../lib/auth'
 import { startStripeCheckout } from '../../lib/stripeCheckout'
 import { flushProfileSync } from '../../lib/userSync'
+import { supabase } from '../../lib/supabase'
+
+type AuthMode = 'signup' | 'login'
 
 export function PaymentPage() {
   const navigate = useNavigate()
-  const { selectedPlan, usePromoOffer } = useAppStore()
+  const { selectedPlan, usePromoOffer, email: storedEmail } = useAppStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState<boolean | null>(null)
+  const [authMode, setAuthMode] = useState<AuthMode>('signup')
+  const [email, setEmail] = useState(storedEmail || '')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const price = getCheckoutPrice(selectedPlan, usePromoOffer)
+  const isSignup = authMode === 'signup'
+  const canSubmitAuth =
+    isValidEmail(email) &&
+    password.length >= 6 &&
+    (!isSignup || password === confirmPassword)
 
   useEffect(() => {
-    useAppStore.getState().markPixViewed()
     void flushProfileSync()
   }, [selectedPlan, usePromoOffer])
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthReady(false)
+      return
+    }
+
+    let active = true
+
+    const syncAuth = async () => {
+      const session = await restoreAuthSession()
+      if (!active) return
+      setAuthReady(Boolean(session))
+    }
+
+    void syncAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return
+      if (session) {
+        applySessionToStore(session)
+        setAuthReady(true)
+      }
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const goToCheckout = async () => {
+    const url = await startStripeCheckout(selectedPlan, usePromoOffer)
+    window.location.href = url
+  }
 
   const handlePay = async () => {
     setLoading(true)
     setError(null)
     try {
-      const url = await startStripeCheckout(selectedPlan, usePromoOffer)
-      window.location.href = url
+      await goToCheckout()
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Erro ao iniciar pagamento'
+      if (message === 'Faça login para continuar') {
+        setAuthReady(false)
+      }
       setError(message)
+      setLoading(false)
+    }
+  }
+
+  const handleAuthAndPay = async () => {
+    if (!canSubmitAuth) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const session = isSignup
+        ? await signUpWithEmail(email, password)
+        : await signInWithEmail(email, password)
+
+      if (!session) {
+        throw new EmailConfirmationRequiredError()
+      }
+
+      await establishAuthSession(session)
+      setAuthReady(true)
+      await goToCheckout()
+    } catch (e) {
+      if (e instanceof EmailLinkedToGoogleError) {
+        setError(e.message)
+      } else if (e instanceof EmailConfirmationRequiredError) {
+        setError(e.message)
+      } else {
+        const message = e instanceof Error ? e.message : 'Erro ao autenticar.'
+        setError(formatAuthError(message))
+      }
       setLoading(false)
     }
   }
@@ -62,7 +157,56 @@ export function PaymentPage() {
           </span>
         )}
 
-        <div className="flex-1 min-h-0 flex flex-col justify-center">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {authReady === false && (
+            <div className="bg-surface rounded-2xl p-4 mb-3 space-y-3 animate-fade-in">
+              <div>
+                <p className="font-semibold text-sm">
+                  {isSignup ? 'Crie sua conta para pagar' : 'Entre na sua conta'}
+                </p>
+                <p className="text-neutral-500 text-xs mt-1">
+                  Sua conta é criada agora e você vai direto para o pagamento seguro.
+                </p>
+              </div>
+
+              <InputField
+                value={email}
+                onChange={setEmail}
+                placeholder="seu@email.com"
+                type="email"
+              />
+              <PasswordField
+                label={isSignup ? 'Crie uma senha' : 'Sua senha'}
+                value={password}
+                onChange={setPassword}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+              />
+              {isSignup && (
+                <PasswordField
+                  label="Repita a senha"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  placeholder="Digite de novo"
+                  autoComplete="new-password"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(isSignup ? 'login' : 'signup')
+                  setError(null)
+                  setPassword('')
+                  setConfirmPassword('')
+                }}
+                className="text-neutral-400 text-xs underline"
+              >
+                {isSignup ? 'Já tenho conta — entrar' : 'Criar conta nova'}
+              </button>
+            </div>
+          )}
+
           <div className="bg-surface rounded-2xl p-5 space-y-4 animate-fade-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-accent-green/15 flex items-center justify-center">
@@ -106,9 +250,27 @@ export function PaymentPage() {
             <Lock size={12} />
             Pagamento seguro · criptografado
           </div>
-          <Button onClick={() => void handlePay()} disabled={loading} className="py-3.5 text-sm">
-            {loading ? 'Redirecionando...' : 'Pagar agora'}
-          </Button>
+          {authReady === false ? (
+            <Button
+              onClick={() => void handleAuthAndPay()}
+              disabled={loading || !canSubmitAuth}
+              className="py-3.5 text-sm"
+            >
+              {loading
+                ? 'Redirecionando...'
+                : isSignup
+                  ? 'Criar conta e pagar'
+                  : 'Entrar e pagar'}
+            </Button>
+          ) : (
+            <Button
+              onClick={() => void handlePay()}
+              disabled={loading || authReady === null}
+              className="py-3.5 text-sm"
+            >
+              {authReady === null ? 'Verificando conta...' : loading ? 'Redirecionando...' : 'Pagar agora'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

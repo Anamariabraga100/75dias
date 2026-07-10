@@ -6,7 +6,7 @@ import { InputField } from '../components/ui/InputField'
 import { PasswordChecklist, PasswordField } from '../components/ui/PasswordField'
 import { GoogleSignInOverlay } from '../components/auth/GoogleSignInOverlay'
 import {
-  applySessionToStore,
+  establishAuthSession,
   assertSupabaseReady,
   completeGoogleSignIn,
   EmailAlreadyExistsError,
@@ -40,6 +40,7 @@ export function EmailAuthPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const mode: AuthMode = searchParams.get('mode') === 'login' ? 'login' : 'signup'
+  const nextPath = searchParams.get('next')
   const isSignup = mode === 'signup'
 
   const [step, setStep] = useState<Step>('email')
@@ -112,8 +113,11 @@ export function EmailAuthPage() {
         : await signInWithEmail(email, password)
 
       if (session) {
-        applySessionToStore(session)
-        await navigateAfterAuth(navigate, { returning: !isSignup })
+        await establishAuthSession(session)
+        await navigateAfterAuth(navigate, {
+          returning: !isSignup,
+          next: nextPath ?? undefined,
+        })
         return
       }
 
@@ -144,8 +148,8 @@ export function EmailAuthPage() {
       setLoading(true)
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
-      applySessionToStore(session)
-      await navigateAfterAuth(navigate, { returning: !isSignup })
+      await establishAuthSession(session)
+      await navigateAfterAuth(navigate, { returning: !isSignup, next: nextPath ?? undefined })
     } catch (e) {
       setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
       setLoading(false)
@@ -160,8 +164,8 @@ export function EmailAuthPage() {
       assertSupabaseReady()
       const session = await signInWithGoogle({ returning: !isSignup })
       if (session) {
-        applySessionToStore(session)
-        await navigateAfterAuth(navigate, { returning: !isSignup })
+        await establishAuthSession(session)
+        await navigateAfterAuth(navigate, { returning: !isSignup, next: nextPath ?? undefined })
       }
     } catch (e) {
       setError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')

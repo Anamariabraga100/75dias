@@ -10,7 +10,7 @@ import {
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { hydrateFromCloud, flushProfileSync } from './userSync'
-import { getPostAuthPath } from './onboardingRoute'
+import { getPostAuthPath, isSafeInternalPath } from './onboardingRoute'
 import { hasActiveAccess } from './subscription'
 
 export class EmailLinkedToGoogleError extends Error {
@@ -268,6 +268,7 @@ export function applySessionToStore(session: Session) {
     email: session.user.email ?? undefined,
     avatarUrl: avatarUrl || null,
   })
+  useAppStore.setState({ authUserId: session.user.id })
 }
 
 export async function signOut() {
@@ -278,13 +279,33 @@ export async function signOut() {
   useAppStore.getState().clearUserProfile()
 }
 
-export async function navigateAfterAuth(navigate: NavigateFunction, _options?: { returning?: boolean }) {
+export async function establishAuthSession(session: Session) {
+  applySessionToStore(session)
+  await flushProfileSync()
+  return session
+}
+
+export async function ensureAuthSession(): Promise<Session> {
+  const restored = await restoreAuthSession()
+  if (restored) return restored
+
+  throw new Error('Faça login para continuar')
+}
+
+export async function navigateAfterAuth(
+  navigate: NavigateFunction,
+  options?: { returning?: boolean; next?: string }
+) {
   await hydrateFromCloud()
 
-  const { onboardingComplete, paymentComplete, subscriptionStatus, pixViewed } =
-    useAppStore.getState()
+  if (options?.next && isSafeInternalPath(options.next)) {
+    navigate(options.next, { replace: true })
+    return
+  }
+
+  const { onboardingComplete, paymentComplete, subscriptionStatus } = useAppStore.getState()
   const paid = hasActiveAccess(subscriptionStatus, paymentComplete)
-  navigate(getPostAuthPath(onboardingComplete, paid, pixViewed), { replace: true })
+  navigate(getPostAuthPath(onboardingComplete, paid), { replace: true })
 }
 
 export async function getCurrentSession() {
@@ -295,7 +316,17 @@ export async function getCurrentSession() {
 }
 
 export async function restoreAuthSession() {
-  const session = await getCurrentSession()
+  if (!supabase) return null
+
+  let session = await getCurrentSession()
+
+  if (!session) {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (!error && data.session) {
+      session = data.session
+    }
+  }
+
   if (!session) return null
 
   applySessionToStore(session)

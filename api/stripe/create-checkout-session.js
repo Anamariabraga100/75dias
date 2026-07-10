@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js')
-const { getAppUrl, requireEnv } = require('../_lib/env')
+const { getAppUrl, getSupabaseUrl, getSupabaseAnonKey } = require('../_lib/env')
 const { getStripe } = require('../_lib/stripe')
 const { resolvePriceId } = require('../_lib/stripe-prices')
 const { getConnectCheckoutOptions } = require('../_lib/stripe-connect')
@@ -21,7 +21,7 @@ async function authenticateUser(req) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null
   if (!token) return { error: 'Não autenticado', status: 401 }
 
-  const supabase = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_ANON_KEY'), {
+  const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 

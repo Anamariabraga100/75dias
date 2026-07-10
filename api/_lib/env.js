@@ -21,10 +21,21 @@ function getGoogleRedirectUri(req) {
   return `${getAppUrl(req)}/api/auth/callback/google`
 }
 
-function requireEnv(name) {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing env: ${name}`)
+function requireEnv(name, fallbackName) {
+  const value = process.env[name] || (fallbackName ? process.env[fallbackName] : undefined)
+  if (!value) {
+    const hint = fallbackName ? ` (ou ${fallbackName})` : ''
+    throw new Error(`Missing env: ${name}${hint}`)
+  }
   return value
+}
+
+function getSupabaseUrl() {
+  return requireEnv('SUPABASE_URL', 'VITE_SUPABASE_URL')
+}
+
+function getSupabaseAnonKey() {
+  return requireEnv('SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY')
 }
 
 function encodeOAuthState(data) {
@@ -44,6 +55,8 @@ module.exports = {
   getAppUrl,
   getGoogleRedirectUri,
   requireEnv,
+  getSupabaseUrl,
+  getSupabaseAnonKey,
   encodeOAuthState,
   decodeOAuthState,
 }

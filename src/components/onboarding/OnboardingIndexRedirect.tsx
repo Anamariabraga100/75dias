@@ -7,8 +7,7 @@ export function OnboardingIndexRedirect() {
   const onboardingComplete = useAppStore((s) => s.onboardingComplete)
   const paymentComplete = useAppStore((s) => s.paymentComplete)
   const subscriptionStatus = useAppStore((s) => s.subscriptionStatus)
-  const pixViewed = useAppStore((s) => s.pixViewed)
   const paid = hasActiveAccess(subscriptionStatus, paymentComplete)
 
-  return <Navigate to={getPostAuthPath(onboardingComplete, paid, pixViewed)} replace />
+  return <Navigate to={getPostAuthPath(onboardingComplete, paid)} replace />
 }

@@ -1,4 +1,5 @@
 import type { PlanType } from '../store/useAppStore'
+import { ensureAuthSession } from './auth'
 import { supabase } from './supabase'
 
 export async function startStripeCheckout(
@@ -7,9 +8,7 @@ export async function startStripeCheckout(
 ): Promise<string> {
   if (!supabase) throw new Error('Supabase não configurado')
 
-  const { data: sessionData } = await supabase.auth.getSession()
-  const session = sessionData.session
-  if (!session) throw new Error('Faça login para continuar')
+  const session = await ensureAuthSession()
 
   const res = await fetch('/api/stripe/create-checkout-session', {
     method: 'POST',

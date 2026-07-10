@@ -8,10 +8,9 @@ export function AppAccessGuard() {
   const onboardingComplete = useAppStore((s) => s.onboardingComplete)
   const paymentComplete = useAppStore((s) => s.paymentComplete)
   const subscriptionStatus = useAppStore((s) => s.subscriptionStatus)
-  const pixViewed = useAppStore((s) => s.pixViewed)
 
   const paid = hasActiveAccess(subscriptionStatus, paymentComplete)
-  const target = getPostAuthPath(onboardingComplete, paid, pixViewed)
+  const target = getPostAuthPath(onboardingComplete, paid)
   if (target !== '/app') {
     return <Navigate to={target} replace />
   }

@@ -14,17 +14,21 @@ export function isOnboardingPaymentPath(pathname: string): boolean {
 
 export function getPostAuthPath(
   onboardingComplete: boolean,
-  paid: boolean,
-  pixViewed = false
+  paid: boolean
 ): '/app' | '/onboarding/planos' | '/onboarding/nome' {
-  if (onboardingComplete && (paid || pixViewed)) return '/app'
+  if (onboardingComplete && paid) return '/app'
   if (onboardingComplete) return '/onboarding/planos'
   return '/onboarding/nome'
+}
+
+export function isSafeInternalPath(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !path.includes('://')
 }
 
 /** Rotas de login/cadastro — usuário autenticado é redirecionado ao app. */
 export function shouldRedirectAuthenticatedFrom(pathname: string): boolean {
   if (pathname.startsWith('/admin')) return false
   if (pathname === '/auth/callback') return false
-  return pathname === '/' || pathname.startsWith('/auth/email')
+  if (pathname.startsWith('/auth/email')) return false
+  return pathname === '/'
 }

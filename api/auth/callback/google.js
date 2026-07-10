@@ -4,6 +4,8 @@ const {
   getAppUrl,
   getGoogleRedirectUri,
   requireEnv,
+  getSupabaseUrl,
+  getSupabaseAnonKey,
 } = require('../../_lib/env')
 
 module.exports = async function handler(req, res) {
@@ -46,7 +48,7 @@ module.exports = async function handler(req, res) {
       return
     }
 
-    const supabase = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_ANON_KEY'))
+    const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey())
 
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
