@@ -2,16 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   navigateAfterAuth,
-  restoreAuthSession,
   applySessionToStore,
   getCurrentSession,
 } from '../../lib/auth'
 import { shouldRedirectAuthenticatedFrom } from '../../lib/onboardingRoute'
 import { hydrateFromCloud } from '../../lib/userSync'
 import { waitForStoreHydration } from '../../lib/storeHydration'
-import { requestPersistentStorage, warmAuthStorage } from '../../lib/authStorage'
-import { AUTH_STORAGE_KEY, supabase } from '../../lib/supabase'
-import { useAppStore } from '../../store/useAppStore'
+import { supabase } from '../../lib/supabase'
 
 interface AuthSessionSyncProps {
   children: ReactNode
@@ -41,29 +38,23 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     if (!supabase) return
 
     let active = true
-    let bootstrapped = false
 
     const bootstrap = async () => {
       try {
-        // Não travar a UI: timeout curto no aquecimento / storage
         await withTimeout(
           (async () => {
-            await requestPersistentStorage()
-            await warmAuthStorage([AUTH_STORAGE_KEY])
             await waitForStoreHydration()
             const session = await getCurrentSession()
-            if (session) applySessionToStore(session)
+            if (session) {
+              applySessionToStore(session)
+              void hydrateFromCloud()
+            }
           })(),
           2500
         )
       } finally {
-        if (!active) return
-        bootstrapped = true
-        setReady(true)
+        if (active) setReady(true)
       }
-
-      // Nuvem em background — não segura a tela preta
-      void restoreAuthSession()
     }
 
     void bootstrap()
@@ -74,7 +65,10 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       if (!active) return
 
       if (event === 'INITIAL_SESSION') {
-        if (session) applySessionToStore(session)
+        if (session) {
+          applySessionToStore(session)
+          void hydrateFromCloud()
+        }
         return
       }
 
@@ -90,30 +84,14 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
         return
       }
 
-      if (event === 'SIGNED_OUT') {
-        if (!bootstrapped || !supabase) return
-        if (!navigator.onLine) return
-        const { data } = await supabase.auth.getSession()
-        if (!active || data.session) return
-        useAppStore.getState().reset()
-      }
+      // SIGNED_OUT: não zera o app automaticamente —
+      // refresh falho / foco / PWA disparava logout falso.
+      // Logout real só via signOut() explícito.
     })
-
-    const refreshOnFocus = () => {
-      if (document.visibilityState !== 'visible') return
-      void restoreAuthSession()
-    }
-
-    document.addEventListener('visibilitychange', refreshOnFocus)
-    window.addEventListener('focus', refreshOnFocus)
-    window.addEventListener('online', refreshOnFocus)
 
     return () => {
       active = false
       subscription.unsubscribe()
-      document.removeEventListener('visibilitychange', refreshOnFocus)
-      window.removeEventListener('focus', refreshOnFocus)
-      window.removeEventListener('online', refreshOnFocus)
     }
   }, [navigate])
 

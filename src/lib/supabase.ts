@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { authStorage } from './authStorage'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -14,7 +13,7 @@ export const supabase: SupabaseClient | null =
           detectSessionInUrl: true,
           persistSession: true,
           autoRefreshToken: true,
-          storage: authStorage,
+          storage: localStorage,
           storageKey: AUTH_STORAGE_KEY,
         },
       })
