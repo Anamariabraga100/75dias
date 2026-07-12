@@ -8,9 +8,8 @@ import {
   useCustomGoogleOAuth,
 } from './appUrl'
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
-import { shouldAvoidAuthPopup } from './pwaInstall'
 import { isSupabaseConfigured, supabase } from './supabase'
-import { hydrateFromCloud, flushProfileSync } from './userSync'
+import { hydrateFromCloud, flushProfileSync, scheduleProfileSync } from './userSync'
 import { waitForStoreHydration } from './storeHydration'
 import { getPostAuthPath, isSafeInternalPath } from './onboardingRoute'
 import { hasActiveAccess } from './subscription'
@@ -140,31 +139,16 @@ export async function signInWithGoogle(options?: {
   returning?: boolean
   next?: string
 }): Promise<Session | void> {
-  // No atalho PWA, popup abre outro contexto (Safari/Chrome) e a sessão
-  // não volta pro app — usa redirect na mesma janela.
-  if (shouldAvoidAuthPopup()) {
-    if (useCustomGoogleOAuth()) {
-      window.location.assign(getGoogleOAuthStartUrl(options))
-      return
-    }
-    await signInWithGoogleViaSupabase(options)
-    return
-  }
-
   const clientId = await resolveGoogleClientId()
 
-  // Popup GIS — sem redirect, sem PKCE (browser normal)
+  // Popup GIS — funciona no browser e no PWA (id_token na mesma janela)
   if (clientId) {
     const idToken = await openGoogleSignInPopup(clientId)
     return completeGoogleSignIn(idToken)
   }
 
-  if (isLocalDev()) {
-    await signInWithGoogleViaSupabase(options)
-    return
-  }
-
-  if (useCustomGoogleOAuth()) {
+  // Sem Client ID: redirect OAuth (fallback)
+  if (useCustomGoogleOAuth() && !isLocalDev()) {
     window.location.assign(getGoogleOAuthStartUrl(options))
     return
   }
@@ -312,9 +296,16 @@ export async function establishAuthSession(
   }
 
   applySessionToStore(session)
-  await waitForStoreHydration()
-  await hydrateFromCloud()
-  await flushProfileSync()
+  // Nuvem em background — nunca travar a tela em "Abrindo Google…"
+  void (async () => {
+    try {
+      await waitForStoreHydration()
+      await hydrateFromCloud()
+      scheduleProfileSync()
+    } catch {
+      /* ignore */
+    }
+  })()
   return session
 }
 
@@ -329,8 +320,8 @@ export async function navigateAfterAuth(
   navigate: NavigateFunction,
   options?: { returning?: boolean; next?: string }
 ) {
-  await waitForStoreHydration()
-  await hydrateFromCloud()
+  // Não esperar nuvem — usa cache local e sincroniza depois
+  void hydrateFromCloud()
 
   if (options?.next && isSafeInternalPath(options.next)) {
     navigate(options.next, { replace: true })

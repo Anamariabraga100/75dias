@@ -51,7 +51,7 @@ export function LandingPage() {
     try {
       assertSupabaseReady()
       const session = await completeGoogleSignIn(idToken)
-      await establishAuthSession(session, { freshAccount: true })
+      await establishAuthSession(session)
       await navigateAfterAuth(navigate)
     } catch (e) {
       setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao entrar com Google.')
@@ -71,8 +71,11 @@ export function LandingPage() {
       assertSupabaseReady()
       const session = await signInWithGoogle()
       if (session) {
-        await establishAuthSession(session, { freshAccount: true })
+        await establishAuthSession(session)
         await navigateAfterAuth(navigate)
+      } else {
+        // Redirect OAuth — a página vai embora; limpa loading por precaução
+        setLoading(null)
       }
     } catch (e) {
       setAuthError(e instanceof Error ? formatAuthError(e.message) : 'Erro ao abrir login Google.')
@@ -88,7 +91,7 @@ export function LandingPage() {
       className="landing-btn-google landing-btn-outline disabled:opacity-60 w-full"
     >
       <GoogleIcon />
-      {loading === 'google' ? 'Abrindo Google…' : 'Continuar com Google'}
+      {loading === 'google' ? 'Entrando…' : 'Continuar com Google'}
     </button>
   )
 

@@ -1,11 +1,13 @@
 /**
- * Storage de sessão mais resistente no PWA (iOS limpa localStorage com mais facilidade).
- * Memória + IndexedDB + localStorage (espelho).
+ * Storage de sessão resistente no PWA.
+ * Leitura/escrita síncrona via memória + localStorage; IndexedDB espelha em background
+ * (nunca bloqueia o login).
  */
 
 const DB_NAME = 'reset90-auth-db'
 const STORE_NAME = 'kv'
 const DB_VERSION = 1
+const IDB_TIMEOUT_MS = 1500
 
 const memory = new Map<string, string>()
 
@@ -24,6 +26,21 @@ function openDb(): Promise<IDBDatabase> {
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error ?? new Error('indexedDB open failed'))
+  })
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms)
+    promise
+      .then((value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch(() => {
+        window.clearTimeout(timer)
+        resolve(null)
+      })
   })
 }
 
@@ -73,65 +90,64 @@ async function idbRemove(key: string): Promise<void> {
 }
 
 export const authStorage = {
-  getItem: async (key: string): Promise<string | null> => {
+  getItem: (key: string): string | null => {
     if (memory.has(key)) return memory.get(key) ?? null
-
-    const fromIdb = await idbGet(key)
-    if (fromIdb != null) {
-      memory.set(key, fromIdb)
-      try {
-        localStorage.setItem(key, fromIdb)
-      } catch {
-        /* ignore */
-      }
-      return fromIdb
-    }
-
     try {
       const fromLs = localStorage.getItem(key)
       if (fromLs != null) {
         memory.set(key, fromLs)
-        void idbSet(key, fromLs)
         return fromLs
       }
     } catch {
       /* ignore */
     }
-
     return null
   },
 
-  setItem: async (key: string, value: string): Promise<void> => {
+  setItem: (key: string, value: string): void => {
     memory.set(key, value)
     try {
       localStorage.setItem(key, value)
     } catch {
       /* ignore */
     }
-    await idbSet(key, value)
+    // Espelho IDB sem bloquear o login
+    void idbSet(key, value)
   },
 
-  removeItem: async (key: string): Promise<void> => {
+  removeItem: (key: string): void => {
     memory.delete(key)
     try {
       localStorage.removeItem(key)
     } catch {
       /* ignore */
     }
-    await idbRemove(key)
+    void idbRemove(key)
   },
 }
 
-/** Pré-aquece memória a partir do IndexedDB / localStorage antes do bootstrap. */
+/** Pré-aquece memória a partir do IndexedDB (com timeout). */
 export async function warmAuthStorage(keys: string[]): Promise<void> {
-  await Promise.all(keys.map((key) => authStorage.getItem(key)))
+  await Promise.all(
+    keys.map(async (key) => {
+      if (memory.has(key) || authStorage.getItem(key)) return
+      const fromIdb = await withTimeout(idbGet(key), IDB_TIMEOUT_MS)
+      if (fromIdb != null) {
+        memory.set(key, fromIdb)
+        try {
+          localStorage.setItem(key, fromIdb)
+        } catch {
+          /* ignore */
+        }
+      }
+    })
+  )
 }
 
-/** Pede ao browser para não evictar dados do app (ajuda no PWA). */
 export async function requestPersistentStorage(): Promise<void> {
   try {
     if (navigator.storage?.persist) {
-      await navigator.storage.persist()
+      await withTimeout(navigator.storage.persist().then(() => undefined), 1000)
     }
   } catch {
     /* ignore */
