@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { NotificationsDropdown } from '../app/NotificationsDropdown'
 import { ProfileDropdown } from '../app/ProfileDropdown'
 import { XpModal } from '../app/XpModal'
+import { PwaInstallHeaderButton } from '../pwa/PwaInstallBanner'
 import { countUnreadNotifications } from '../../lib/notifications'
 import { UserAvatar } from '../ui/UserAvatar'
 import { getDisplayDay } from '../../lib/demoProgress'
@@ -155,6 +156,7 @@ export function AppHeader() {
           <Logo size="sm" to="/app" />
 
           <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+            <PwaInstallHeaderButton />
             {challengeAccepted && (
               <>
                 <HeaderStatPill

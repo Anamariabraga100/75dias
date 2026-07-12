@@ -623,7 +623,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: '75-dias-storage',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         name: state.name,
         email: state.email,
@@ -645,6 +645,15 @@ export const useAppStore = create<AppState>()(
         customStartDate: state.customStartDate,
         readNotificationIds: state.readNotificationIds,
         dismissedNotificationIds: state.dismissedNotificationIds,
+        // Cache de acesso — evita bounce no PWA antes do hydrate da nuvem
+        authUserId: state.authUserId,
+        onboardingComplete: state.onboardingComplete,
+        paymentComplete: state.paymentComplete,
+        subscriptionStatus: state.subscriptionStatus,
+        subscriptionPeriodEnd: state.subscriptionPeriodEnd,
+        subscriptionCancelAtPeriodEnd: state.subscriptionCancelAtPeriodEnd,
+        challengeAccepted: state.challengeAccepted,
+        challengeId: state.challengeId,
       }),
       migrate: (persisted) => {
         if (!persisted || typeof persisted !== 'object') return persisted
@@ -672,6 +681,15 @@ export const useAppStore = create<AppState>()(
           dismissedNotificationIds: Array.isArray(raw.dismissedNotificationIds)
             ? raw.dismissedNotificationIds
             : [],
+          authUserId: typeof raw.authUserId === 'string' ? raw.authUserId : null,
+          onboardingComplete: Boolean(raw.onboardingComplete),
+          paymentComplete: Boolean(raw.paymentComplete),
+          subscriptionStatus: raw.subscriptionStatus ?? null,
+          subscriptionPeriodEnd:
+            typeof raw.subscriptionPeriodEnd === 'string' ? raw.subscriptionPeriodEnd : null,
+          subscriptionCancelAtPeriodEnd: Boolean(raw.subscriptionCancelAtPeriodEnd),
+          challengeAccepted: Boolean(raw.challengeAccepted),
+          challengeId: raw.challengeId ?? null,
         }
       },
       merge: (persisted, current) => {
@@ -705,6 +723,16 @@ export const useAppStore = create<AppState>()(
           dismissedNotificationIds: Array.isArray(saved.dismissedNotificationIds)
             ? saved.dismissedNotificationIds
             : current.dismissedNotificationIds,
+          authUserId: saved.authUserId ?? current.authUserId,
+          onboardingComplete: Boolean(saved.onboardingComplete ?? current.onboardingComplete),
+          paymentComplete: Boolean(saved.paymentComplete ?? current.paymentComplete),
+          subscriptionStatus: saved.subscriptionStatus ?? current.subscriptionStatus,
+          subscriptionPeriodEnd: saved.subscriptionPeriodEnd ?? current.subscriptionPeriodEnd,
+          subscriptionCancelAtPeriodEnd: Boolean(
+            saved.subscriptionCancelAtPeriodEnd ?? current.subscriptionCancelAtPeriodEnd
+          ),
+          challengeAccepted: Boolean(saved.challengeAccepted ?? current.challengeAccepted),
+          challengeId: saved.challengeId ?? current.challengeId,
         }
       },
       onRehydrateStorage: () => () => {

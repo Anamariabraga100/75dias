@@ -1,10 +1,9 @@
 import { Download, Share, X } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
 import { usePwaInstall } from '../../hooks/usePwaInstall'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 
-export function PwaInstallBanner() {
-  const location = useLocation()
+/** Botão compacto de instalar — só no cabeçalho do /app. */
+export function PwaInstallHeaderButton() {
   const {
     visible,
     ios,
@@ -18,43 +17,28 @@ export function PwaInstallBanner() {
     closeDevGuide,
   } = usePwaInstall()
 
-  if (location.pathname.startsWith('/admin')) return null
   if (!visible || !canPrompt) return null
 
   return (
     <>
-      <div className="sticky top-0 z-[60] border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-lg items-center gap-3 px-3 py-2.5">
-          <img
-            src="/pwa-192x192.png"
-            alt=""
-            width={36}
-            height={36}
-            className="h-9 w-9 shrink-0 rounded-lg"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">Instale o Reset90</p>
-            <p className="truncate text-[11px] text-neutral-400">
-              Abra como app, em tela cheia
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void install()}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-black"
-          >
-            <Download size={14} strokeWidth={2.5} />
-            Baixar
-          </button>
-          <button
-            type="button"
-            onClick={dismiss}
-            aria-label="Fechar"
-            className="shrink-0 rounded-lg p-1.5 text-neutral-500 hover:bg-white/5 hover:text-neutral-300"
-          >
-            <X size={16} />
-          </button>
-        </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => void install()}
+          className="inline-flex items-center gap-1 rounded-xl border border-neutral-700/80 bg-white px-2.5 py-1.5 text-[11px] font-bold text-black"
+          aria-label="Instalar app"
+        >
+          <Download size={13} strokeWidth={2.5} />
+          Baixar
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Fechar instalação"
+          className="rounded-lg p-1 text-neutral-500 hover:bg-white/5 hover:text-neutral-300"
+        >
+          <X size={14} />
+        </button>
       </div>
 
       {ios && iosGuideOpen && (

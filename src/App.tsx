@@ -19,7 +19,6 @@ import { EmailAuthPage } from './pages/EmailAuthPage'
 
 import { AuthSessionSync } from './components/auth/AuthSessionSync'
 import { ProfileSyncGuard } from './components/auth/ProfileSyncGuard'
-import { PwaInstallBanner } from './components/pwa/PwaInstallBanner'
 
 import { AdminGuard } from './components/admin/AdminGuard'
 import { AdminLayout } from './pages/admin/AdminLayout'
@@ -39,7 +38,6 @@ export default function App() {
     <BrowserRouter>
       <AuthSessionSync>
         <ProfileSyncGuard />
-        <PwaInstallBanner />
         <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />

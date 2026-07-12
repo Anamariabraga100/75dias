@@ -354,10 +354,15 @@ export async function restoreAuthSession() {
 
   let session = await getCurrentSession()
 
-  if (!session) {
-    const { data, error } = await supabase.auth.refreshSession()
-    if (!error && data.session) {
-      session = data.session
+  // Offline: não tenta refresh (pode invalidar token no PWA)
+  if (!session && navigator.onLine) {
+    try {
+      const { data, error } = await supabase.auth.refreshSession()
+      if (!error && data.session) {
+        session = data.session
+      }
+    } catch {
+      session = await getCurrentSession()
     }
   }
 

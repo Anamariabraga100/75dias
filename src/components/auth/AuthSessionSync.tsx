@@ -4,7 +4,8 @@ import { navigateAfterAuth, restoreAuthSession, applySessionToStore } from '../.
 import { shouldRedirectAuthenticatedFrom } from '../../lib/onboardingRoute'
 import { hydrateFromCloud } from '../../lib/userSync'
 import { waitForStoreHydration } from '../../lib/storeHydration'
-import { supabase } from '../../lib/supabase'
+import { requestPersistentStorage, warmAuthStorage } from '../../lib/authStorage'
+import { AUTH_STORAGE_KEY, supabase } from '../../lib/supabase'
 import { useAppStore } from '../../store/useAppStore'
 
 interface AuthSessionSyncProps {
@@ -23,11 +24,13 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     let bootstrapped = false
 
     const bootstrap = async () => {
+      await requestPersistentStorage()
+      await warmAuthStorage([AUTH_STORAGE_KEY])
       await waitForStoreHydration()
       await restoreAuthSession()
       if (!active) return
       bootstrapped = true
-      if (active) setReady(true)
+      setReady(true)
     }
 
     void bootstrap()
@@ -37,7 +40,6 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return
 
-      // INITIAL_SESSION com null não é logout — evita zerar o app no boot do PWA
       if (event === 'INITIAL_SESSION') {
         if (session) applySessionToStore(session)
         return
@@ -56,8 +58,9 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       }
 
       if (event === 'SIGNED_OUT') {
-        // Só limpa depois do bootstrap — e só se realmente não houver sessão
         if (!bootstrapped || !supabase) return
+        // Offline / rede instável não deve deslogar o usuário do PWA
+        if (!navigator.onLine) return
         const { data } = await supabase.auth.getSession()
         if (!active || data.session) return
         useAppStore.getState().reset()
@@ -71,12 +74,14 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
 
     document.addEventListener('visibilitychange', refreshOnFocus)
     window.addEventListener('focus', refreshOnFocus)
+    window.addEventListener('online', refreshOnFocus)
 
     return () => {
       active = false
       subscription.unsubscribe()
       document.removeEventListener('visibilitychange', refreshOnFocus)
       window.removeEventListener('focus', refreshOnFocus)
+      window.removeEventListener('online', refreshOnFocus)
     }
   }, [navigate])
 
