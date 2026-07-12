@@ -1,6 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { navigateAfterAuth, restoreAuthSession, applySessionToStore } from '../../lib/auth'
+import {
+  navigateAfterAuth,
+  restoreAuthSession,
+  applySessionToStore,
+  getCurrentSession,
+} from '../../lib/auth'
 import { shouldRedirectAuthenticatedFrom } from '../../lib/onboardingRoute'
 import { hydrateFromCloud } from '../../lib/userSync'
 import { waitForStoreHydration } from '../../lib/storeHydration'
@@ -10,6 +15,21 @@ import { useAppStore } from '../../store/useAppStore'
 
 interface AuthSessionSyncProps {
   children: ReactNode
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms)
+    promise
+      .then((value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch(() => {
+        window.clearTimeout(timer)
+        resolve(null)
+      })
+  })
 }
 
 /** Restaura sessão persistida, renova token e mantém usuário logado. */
@@ -24,13 +44,26 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     let bootstrapped = false
 
     const bootstrap = async () => {
-      await requestPersistentStorage()
-      await warmAuthStorage([AUTH_STORAGE_KEY])
-      await waitForStoreHydration()
-      await restoreAuthSession()
-      if (!active) return
-      bootstrapped = true
-      setReady(true)
+      try {
+        // Não travar a UI: timeout curto no aquecimento / storage
+        await withTimeout(
+          (async () => {
+            await requestPersistentStorage()
+            await warmAuthStorage([AUTH_STORAGE_KEY])
+            await waitForStoreHydration()
+            const session = await getCurrentSession()
+            if (session) applySessionToStore(session)
+          })(),
+          2500
+        )
+      } finally {
+        if (!active) return
+        bootstrapped = true
+        setReady(true)
+      }
+
+      // Nuvem em background — não segura a tela preta
+      void restoreAuthSession()
     }
 
     void bootstrap()
@@ -48,7 +81,7 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       if (session) {
         applySessionToStore(session)
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          await hydrateFromCloud()
+          void hydrateFromCloud()
         }
 
         if (event === 'SIGNED_IN' && shouldRedirectAuthenticatedFrom(window.location.pathname)) {
@@ -59,7 +92,6 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
 
       if (event === 'SIGNED_OUT') {
         if (!bootstrapped || !supabase) return
-        // Offline / rede instável não deve deslogar o usuário do PWA
         if (!navigator.onLine) return
         const { data } = await supabase.auth.getSession()
         if (!active || data.session) return

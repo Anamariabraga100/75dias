@@ -19,8 +19,19 @@ function getClient() {
 export async function getAuthUserId(): Promise<string | null> {
   const client = getClient()
   if (!client) return null
-  const { data } = await client.auth.getUser()
-  return data.user?.id ?? null
+
+  // Preferir sessão local — getUser() bate na rede e pode travar o boot
+  const { data: sessionData } = await client.auth.getSession()
+  if (sessionData.session?.user?.id) return sessionData.session.user.id
+
+  if (!navigator.onLine) return null
+
+  try {
+    const { data } = await client.auth.getUser()
+    return data.user?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 type CloudProfile = {
@@ -111,7 +122,7 @@ export async function hydrateFromCloud(): Promise<boolean> {
 
     const afterReconcile = useAppStore.getState()
     if (shouldPushLocalToCloud(afterReconcile)) {
-      await flushProfileSync()
+      scheduleProfileSync()
     }
 
     const final = useAppStore.getState()

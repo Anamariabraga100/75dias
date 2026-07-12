@@ -370,7 +370,8 @@ export async function restoreAuthSession() {
 
   applySessionToStore(session)
   await waitForStoreHydration()
-  await hydrateFromCloud()
+  // Não bloquear chamadores: hydrate pode ser lento / falhar offline
+  void hydrateFromCloud()
   return session
 }
 
