@@ -8,6 +8,7 @@ import {
   useCustomGoogleOAuth,
 } from './appUrl'
 import { openGoogleSignInPopup, resolveGoogleClientId } from './googleSignIn'
+import { shouldAvoidAuthPopup } from './pwaInstall'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { hydrateFromCloud, flushProfileSync } from './userSync'
 import { waitForStoreHydration } from './storeHydration'
@@ -139,9 +140,20 @@ export async function signInWithGoogle(options?: {
   returning?: boolean
   next?: string
 }): Promise<Session | void> {
+  // No atalho PWA, popup abre outro contexto (Safari/Chrome) e a sessão
+  // não volta pro app — usa redirect na mesma janela.
+  if (shouldAvoidAuthPopup()) {
+    if (useCustomGoogleOAuth()) {
+      window.location.assign(getGoogleOAuthStartUrl(options))
+      return
+    }
+    await signInWithGoogleViaSupabase(options)
+    return
+  }
+
   const clientId = await resolveGoogleClientId()
 
-  // Popup GIS — sem redirect, sem PKCE (localhost e produção)
+  // Popup GIS — sem redirect, sem PKCE (browser normal)
   if (clientId) {
     const idToken = await openGoogleSignInPopup(clientId)
     return completeGoogleSignIn(idToken)
@@ -275,7 +287,8 @@ export function applySessionToStore(session: Session) {
 export async function signOut() {
   await flushProfileSync()
   if (supabase) {
-    await supabase.auth.signOut()
+    // Só esta instalação — não derruba sessão de outros dispositivos
+    await supabase.auth.signOut({ scope: 'local' })
   }
   useAppStore.getState().reset()
 }

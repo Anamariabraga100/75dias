@@ -24,9 +24,11 @@ export default defineConfig({
         background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // Mantém a sessão no mesmo contexto do atalho após OAuth
+        start_url: '/?source=pwa',
         scope: '/',
         lang: 'pt-BR',
+        id: '/',
         categories: ['health', 'lifestyle', 'fitness'],
         icons: [
           {
@@ -49,10 +51,18 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        // Não interceptar callback OAuth / APIs — evita “deslogar” no atalho
+        navigateFallbackDenylist: [/^\/api\//, /^\/auth\/callback/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff2}'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.hostname.includes('supabase.co') ||
+              url.pathname.includes('/auth/v1/'),
             handler: 'NetworkOnly',
           },
           {

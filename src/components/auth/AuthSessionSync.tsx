@@ -20,11 +20,13 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     if (!supabase) return
 
     let active = true
+    let bootstrapped = false
 
     const bootstrap = async () => {
       await waitForStoreHydration()
       await restoreAuthSession()
       if (!active) return
+      bootstrapped = true
       if (active) setReady(true)
     }
 
@@ -35,9 +37,17 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return
 
+      // INITIAL_SESSION com null não é logout — evita zerar o app no boot do PWA
+      if (event === 'INITIAL_SESSION') {
+        if (session) applySessionToStore(session)
+        return
+      }
+
       if (session) {
         applySessionToStore(session)
-        await hydrateFromCloud()
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          await hydrateFromCloud()
+        }
 
         if (event === 'SIGNED_IN' && shouldRedirectAuthenticatedFrom(window.location.pathname)) {
           await navigateAfterAuth(navigate)
@@ -46,13 +56,27 @@ export function AuthSessionSync({ children }: AuthSessionSyncProps) {
       }
 
       if (event === 'SIGNED_OUT') {
+        // Só limpa depois do bootstrap — e só se realmente não houver sessão
+        if (!bootstrapped || !supabase) return
+        const { data } = await supabase.auth.getSession()
+        if (!active || data.session) return
         useAppStore.getState().reset()
       }
     })
 
+    const refreshOnFocus = () => {
+      if (document.visibilityState !== 'visible') return
+      void restoreAuthSession()
+    }
+
+    document.addEventListener('visibilitychange', refreshOnFocus)
+    window.addEventListener('focus', refreshOnFocus)
+
     return () => {
       active = false
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', refreshOnFocus)
+      window.removeEventListener('focus', refreshOnFocus)
     }
   }, [navigate])
 

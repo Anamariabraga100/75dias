@@ -7,12 +7,17 @@ export type BeforeInstallPromptEvent = Event & {
 }
 
 export function isStandaloneDisplay(): boolean {
-  if (typeof window === 'undefined') return true
+  if (typeof window === 'undefined') return false
   const media = window.matchMedia('(display-mode: standalone)').matches
   const iosStandalone =
     'standalone' in navigator &&
     Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
   return media || iosStandalone
+}
+
+/** PWA instalado — popup OAuth costuma abrir outro contexto e “perder” a sessão. */
+export function shouldAvoidAuthPopup(): boolean {
+  return isStandaloneDisplay()
 }
 
 export function isIosDevice(): boolean {
