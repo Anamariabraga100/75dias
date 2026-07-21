@@ -9,13 +9,12 @@ import {
 import type { ChallengeId } from '../store/useAppStore'
 import { CHALLENGES } from '../store/useAppStore'
 import { getDisplayDay, TOTAL_PROGRAM_DAYS } from './demoProgress'
-import { daysUntilNextPhoto, getPhotoDaysUpTo, isPhotoDay } from './photoSchedule'
+import { getPhotoDaysUpTo, isPhotoDay } from './photoSchedule'
 
 export type NotificationKind =
   | 'habits'
   | 'photo_due'
   | 'photo_missed'
-  | 'photo_upcoming'
   | 'milestone'
   | 'motivation'
   | 'streak'
@@ -39,6 +38,7 @@ export interface NotificationState {
   challengeAccepted: boolean
   challengeId: ChallengeId | null
   currentDay: number
+  investidaStreak?: number
   mirrorPhotos: Record<number, string>
   taskChecksByDay: Record<number, Record<string, boolean>>
   readNotificationIds: string[]
@@ -72,6 +72,7 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
     challengeAccepted,
     challengeId,
     currentDay,
+    investidaStreak = 0,
     mirrorPhotos,
     taskChecksByDay,
     readNotificationIds,
@@ -136,11 +137,11 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
       color: 'text-teal-400',
       bg: 'bg-teal-500/10',
       tag: 'Lembrete',
-      title: 'Foto do shape hoje',
-      body: `Dia ${displayDay}: registre sua evolução — mesmo ângulo, luz e pose do dia 1.`,
+      title: 'Tire a foto do shape',
+      body: `Dia ${displayDay}: tire a foto agora — mesmo ângulo, luz e pose.`,
       time: 'Agora',
       priority: 95,
-      action: { path: '/app/progresso', hash: 'evolucao' },
+      action: { path: '/app', hash: 'tarefas-hoje' },
     })
   }
 
@@ -157,68 +158,53 @@ export function buildNotifications(state: NotificationState): AppNotification[] 
         color: 'text-amber-400',
         bg: 'bg-amber-500/10',
         tag: 'Pendência',
-        title: 'Registro de evolução perdido',
+        title: 'Foto do shape perdida',
         body:
           missed.length === 1
-            ? `Você não registrou a foto do dia ${latestMissed}. Tente manter o ritmo a cada 3 dias.`
-            : `${missed.length} registros de foto em aberto. O mais recente: dia ${latestMissed}.`,
+            ? `Faltou a foto do dia ${latestMissed}.`
+            : `${missed.length} fotos em aberto. A mais recente: dia ${latestMissed}.`,
         time: 'Pendente',
         priority: 70,
         action: { path: '/app/progresso', hash: 'evolucao' },
       })
     }
-
-    const nextIn = daysUntilNextPhoto(displayDay)
-    if (nextIn === 1 && !isPhotoDay(displayDay)) {
-      items.push({
-        id: `photo-upcoming-${displayDay + nextIn}`,
-        kind: 'photo_upcoming',
-        icon: Camera,
-        color: 'text-teal-400',
-        bg: 'bg-teal-500/10',
-        tag: 'Lembrete',
-        title: 'Foto de evolução amanhã',
-        body: 'Prepare o mesmo lugar e pose do dia 1 para comparar sua evolução.',
-        time: 'Amanhã',
-        priority: 40,
-        action: { path: '/app/progresso', hash: 'evolucao' },
-      })
-    } else if (nextIn > 1 && nextIn <= 2) {
-      items.push({
-        id: `photo-upcoming-${displayDay}`,
-        kind: 'photo_upcoming',
-        icon: Camera,
-        color: 'text-teal-400',
-        bg: 'bg-teal-500/10',
-        tag: 'Lembrete',
-        title: 'Foto de evolução',
-        body: `Próximo registro em ${nextIn} dias — mesmo ângulo e luz (Implacável).`,
-        time: 'Em breve',
-        priority: 30,
-        action: { path: '/app/progresso', hash: 'evolucao' },
-      })
-    }
   }
 
-  if (displayDay >= 1 && challengeAccepted) {
-    items.push({
-      id: `streak-${displayDay}`,
-      kind: 'streak',
-      icon: Flame,
-      color: 'text-accent-orange',
-      bg: 'bg-accent-orange/10',
-      tag: 'Sequência',
-      title: `${displayDay} dia${displayDay !== 1 ? 's' : ''} de investida`,
-      body:
-        displayDay >= 7
-          ? 'Uma semana ou mais no programa. Não quebre a corrente hoje.'
-          : displayDay === 1
-            ? 'Seu primeiro dia no Reset90. Complete os hábitos para avançar.'
-            : 'Cada dia no programa fortalece quem você está se tornando.',
-      time: displayDay >= 7 ? 'Marco' : 'Sequência',
-      priority: 20,
-      action: { path: '/app' },
-    })
+  if (challengeAccepted) {
+    if (investidaStreak === 0) {
+      items.push({
+        id: 'streak-broken',
+        kind: 'streak',
+        icon: Flame,
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        tag: 'Investida',
+        title: 'Investida zerada',
+        body: 'Você faltou um dia. Progresso e investida voltaram ao Dia 1 — XP permanece. Complete as missões hoje.',
+        time: 'Atenção',
+        priority: 15,
+        action: { path: '/app' },
+      })
+    } else {
+      items.push({
+        id: `streak-${investidaStreak}`,
+        kind: 'streak',
+        icon: Flame,
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        tag: 'Sequência',
+        title: `${investidaStreak} dia${investidaStreak !== 1 ? 's' : ''} de investida`,
+        body:
+          investidaStreak >= 7
+            ? 'Uma semana ou mais sem falhar. Não quebre a corrente hoje.'
+            : investidaStreak === 1
+              ? 'Primeiro dia da sequência. Volte amanhã para não zerar.'
+              : 'Cada dia seguido fortalece quem você está se tornando.',
+        time: investidaStreak >= 7 ? 'Marco' : 'Sequência',
+        priority: 20,
+        action: { path: '/app' },
+      })
+    }
   }
 
   const daysLeft = TOTAL_PROGRAM_DAYS - displayDay

@@ -4,16 +4,16 @@ import type { AchievementStatus } from '../../../lib/homeMetrics'
 
 type HomeNextAchievementProps = {
   next: AchievementStatus | null
-  displayDay: number
 }
 
-export function HomeNextAchievement({ next, displayDay }: HomeNextAchievementProps) {
+export function HomeNextAchievement({ next }: HomeNextAchievementProps) {
   const navigate = useNavigate()
 
   if (!next) return null
 
-  const remaining = next.days - displayDay
+  const remaining = Math.max(0, next.days - next.progress)
   const progressPct = Math.min(100, Math.round((next.progress / next.days) * 100))
+  const isStreak = next.kind === 'streak'
 
   return (
     <section className="home-section">
@@ -29,9 +29,17 @@ export function HomeNextAchievement({ next, displayDay }: HomeNextAchievementPro
           <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
             Próxima conquista
           </p>
-          <p className="font-bold text-sm text-white mt-0.5">{next.days} dias seguidos</p>
+          <p className="font-bold text-sm text-white mt-0.5">
+            {isStreak ? `${next.days} dias de investida` : next.title}
+          </p>
           <p className="text-neutral-500 text-xs mt-0.5">
-            Faltam apenas {Math.max(remaining, 1)} dia{remaining !== 1 ? 's' : ''} para desbloquear!
+            {remaining <= 0
+              ? 'Quase lá — continue!'
+              : isStreak
+                ? next.progress === 0
+                  ? `Comece uma investida: faltam ${remaining} dia${remaining !== 1 ? 's' : ''} seguidos.`
+                  : `Faltam ${remaining} dia${remaining !== 1 ? 's' : ''} seguidos de investida.`
+                : `Faltam ${remaining} dia${remaining !== 1 ? 's' : ''} no programa.`}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <div className="flex-1 h-1 rounded-full bg-neutral-800 overflow-hidden">

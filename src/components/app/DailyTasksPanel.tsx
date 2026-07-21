@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Camera,
   Clock,
-  FastForward,
 } from 'lucide-react'
 import { CHALLENGES, useAppStore, type ChallengeId } from '../../store/useAppStore'
 import { LEVEL_META } from '../ui/ChallengeLevelCard'
@@ -22,6 +21,7 @@ import {
   getDayUnlockStatus,
   isFastDayMode,
 } from '../../lib/dayUnlock'
+import { getDayMissionProgress } from '../../lib/streak'
 import { BottomSheet, BottomSheetPanel } from '../ui/BottomSheet'
 import { PhotoCheckInSheet } from './PhotoCheckInSheet'
 import { DailyTipCard } from './DailyTipCard'
@@ -61,9 +61,11 @@ const MOTIVATION_MESSAGES = [
 ]
 
 function TaskInfoModal({ task, onClose }: { task: Task; onClose: () => void }) {
+  const tips = 'tips' in task && Array.isArray(task.tips) ? task.tips : []
+
   return (
     <BottomSheet onClose={onClose}>
-      <BottomSheetPanel className="flex flex-col">
+      <BottomSheetPanel className="flex flex-col animate-fade-in">
         <div className="p-5 pb-0">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2 min-w-0">
@@ -92,6 +94,18 @@ function TaskInfoModal({ task, onClose }: { task: Task; onClose: () => void }) {
               </p>
               <p className="text-neutral-300 text-sm leading-relaxed">{task.weekly}</p>
             </div>
+            {tips.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                  Para não errar
+                </p>
+                {tips.map((tip) => (
+                  <p key={tip} className="text-neutral-300 text-sm leading-relaxed">
+                    • {tip}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -150,9 +164,20 @@ export function DailyTasksPanel({
   const daysLeft = Math.max(0, TOTAL_PROGRAM_DAYS - displayDay)
   const isImplacavel = challengeId === 'implacavel'
   const photoRequired = isImplacavel && isPhotoDay(programDay)
-  const photoDone = !photoRequired || Boolean(mirrorPhotos[programDay])
-  const checksDone = checkTotal > 0 && completedCount === checkTotal
-  const allDone = checksDone && photoDone
+  const missionProgress = challengeId
+    ? getDayMissionProgress(
+        challengeId,
+        programDay,
+        taskChecksByDay,
+        mirrorPhotos
+      )
+    : { done: 0, total: 0, ratio: 0, canFinalize: false, isPerfect: false }
+  const dayMarked = Boolean(dayCompletedAt)
+  const allDone = dayMarked
+  // Só o botão "mesmo assim" — nunca completa sozinho nos 60%.
+  const showPartialCompleteCta =
+    missionProgress.canFinalize && !missionProgress.isPerfect && !dayMarked
+  const progressPctOfDay = Math.round(missionProgress.ratio * 100)
   const motivation =
     MOTIVATION_MESSAGES[(programDay - 1) % MOTIVATION_MESSAGES.length]
   const progressPct = Math.min(
@@ -175,9 +200,10 @@ export function DailyTasksPanel({
     if (!allDone) setShowCompletedDetails(false)
   }, [allDone])
 
+  // Só fecha automaticamente em 100%. Com 60%+ incompleto, só libera o botão.
   useEffect(() => {
-    if (allDone) markCurrentDayComplete()
-  }, [allDone, markCurrentDayComplete])
+    if (missionProgress.isPerfect && !dayCompletedAt) markCurrentDayComplete()
+  }, [missionProgress.isPerfect, dayCompletedAt, markCurrentDayComplete])
 
   useEffect(() => {
     if (!dayUnlock.canAdvance && dayUnlock.remainingMs > 0) {
@@ -186,21 +212,16 @@ export function DailyTasksPanel({
     }
   }, [dayUnlock.canAdvance, dayUnlock.remainingMs])
 
+  useEffect(() => {
+    if (dayUnlock.canAdvance) advanceProgramDay()
+  }, [dayUnlock.canAdvance, advanceProgramDay])
+
   if (!challengeId || !challenge || !meta) return null
 
   const nextDaySection =
     !uiCompact && programDay < TOTAL_PROGRAM_DAYS ? (
       <div className="mt-4 pt-4 border-t border-white/10 text-left">
-        {dayUnlock.canAdvance ? (
-          <button
-            type="button"
-            onClick={() => advanceProgramDay()}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold py-3 text-sm hover:bg-neutral-100 transition-colors"
-          >
-            <FastForward size={16} />
-            Iniciar dia {programDay + 1}
-          </button>
-        ) : (
+        {!dayUnlock.canAdvance && dayUnlock.remainingMs > 0 && (
           <div className="flex items-center justify-center gap-2 text-neutral-400 text-sm py-2">
             <Clock size={15} className="shrink-0" />
             <span>
@@ -279,9 +300,11 @@ export function DailyTasksPanel({
   )
 
   const renderTasks = () => {
-    const visibleTasks = challenge.tasks.filter(
-      (task) => task.id !== 'photo' || photoRequired
-    )
+    // Foto do shape só nos dias de registro (Implacável).
+    const visibleTasks = challenge.tasks.filter((task) => {
+      if (task.id !== 'photo') return true
+      return photoRequired
+    })
 
     return (
     <div className="space-y-2.5">
@@ -292,20 +315,38 @@ export function DailyTasksPanel({
           task.type === 'check'
             ? tasks[task.id]
             : task.id === 'photo' && Boolean(mirrorPhotos[programDay])
-        const photoDue = task.id === 'photo' && isPhotoDay(programDay)
+        const isPhotoTask = task.id === 'photo'
+        const openPhotoOrInfo = () => {
+          if (isPhotoTask) {
+            if (!done) setShowPhotoCheckIn(true)
+            return
+          }
+          setInfoTask(task)
+        }
 
         if (mission) {
           return (
             <div
               key={task.id}
-              className={`rounded-2xl border bg-[#111111] overflow-hidden flex transition-colors ${
+              className={`rounded-2xl border bg-[#111111] overflow-hidden flex transition-all duration-300 hover:border-white/15 ${
                 done ? 'border-accent-green/25' : 'border-neutral-800/80'
               }`}
             >
-              <div className={`w-14 flex items-center justify-center shrink-0 ${colorClass}`}>
+              <button
+                type="button"
+                onClick={openPhotoOrInfo}
+                className={`w-14 flex items-center justify-center shrink-0 ${colorClass} transition-transform active:scale-95`}
+                aria-label={
+                  isPhotoTask ? 'Tirar foto do shape' : `Abrir explicação de ${task.title}`
+                }
+              >
                 <span className="text-2xl">{task.icon}</span>
-              </div>
-              <div className="flex-1 py-3 pr-3 pl-3 flex items-start justify-between gap-2 min-w-0">
+              </button>
+              <button
+                type="button"
+                onClick={openPhotoOrInfo}
+                className="flex-1 py-3 pr-2 pl-3 flex items-start text-left gap-2 min-w-0 hover:bg-white/[0.02] transition-colors"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                     <p
@@ -315,21 +356,18 @@ export function DailyTasksPanel({
                     >
                       {task.title}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setInfoTask(task)}
-                      className="w-5 h-5 rounded-full bg-neutral-800 flex items-center justify-center shrink-0 hover:bg-neutral-700 transition-colors"
-                      aria-label={`Info sobre ${task.title}`}
-                    >
-                      <Info size={11} className="text-neutral-500" />
-                    </button>
+                    {!isPhotoTask && (
+                      <span className="w-5 h-5 rounded-full bg-neutral-800 flex items-center justify-center shrink-0">
+                        <Info size={11} className="text-neutral-500" />
+                      </span>
+                    )}
                   </div>
                   <p
                     className={`text-xs leading-relaxed ${
                       done ? 'text-neutral-600 line-through' : 'text-neutral-500'
                     }`}
                   >
-                    {task.previewHint}
+                    {done && isPhotoTask ? 'Foto registrada' : task.previewHint}
                   </p>
                   {missionTag && (
                     <p className={`text-[9px] font-bold mt-1.5 ${missionTag.className}`}>
@@ -337,36 +375,42 @@ export function DailyTasksPanel({
                     </p>
                   )}
                 </div>
-                {task.type === 'check' && (
-                  <button
-                    type="button"
-                    onClick={() => toggleCheck(task.id)}
-                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
-                      done
-                        ? 'bg-accent-green border-accent-green'
-                        : `${missionTag?.ring ?? 'border-neutral-600'} bg-transparent`
-                    }`}
-                  >
-                    {done && <Check size={16} className="text-black" />}
-                  </button>
-                )}
-                {task.type === 'action' && task.id === 'photo' && (
-                  <button
-                    type="button"
-                    onClick={() => photoDue && !done && setShowPhotoCheckIn(true)}
-                    disabled={!photoDue || done}
-                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
-                      done
-                        ? 'bg-accent-green border-accent-green'
-                        : photoDue
-                          ? 'border-teal-500 text-teal-500'
-                          : 'border-neutral-700 text-neutral-600 opacity-50'
-                    }`}
-                  >
-                    {done ? <Check size={16} className="text-black" /> : <Camera size={16} />}
-                  </button>
-                )}
-              </div>
+              </button>
+              {task.type === 'check' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleCheck(task.id)
+                  }}
+                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-3 mr-3 ${
+                    done
+                      ? 'bg-accent-green border-accent-green scale-105'
+                      : `${missionTag?.ring ?? 'border-neutral-600'} ${missionTag?.className ?? 'text-neutral-500'} bg-transparent animate-task-check`
+                  }`}
+                  aria-label={done ? `Desmarcar ${task.title}` : `Marcar ${task.title} como concluída`}
+                >
+                  {done && <Check size={16} className="text-black" />}
+                </button>
+              )}
+              {isPhotoTask && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!done) setShowPhotoCheckIn(true)
+                  }}
+                  disabled={done}
+                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all mt-3 mr-3 ${
+                    done
+                      ? 'bg-accent-green border-accent-green'
+                      : 'border-teal-500 text-teal-500 animate-task-check'
+                  }`}
+                  aria-label={done ? 'Foto já registrada' : 'Tirar foto do shape'}
+                >
+                  {done ? <Check size={16} className="text-black" /> : <Camera size={16} />}
+                </button>
+              )}
             </div>
           )
         }
@@ -374,14 +418,29 @@ export function DailyTasksPanel({
         return (
           <div
             key={task.id}
-            className={`bg-surface rounded-2xl overflow-hidden flex border transition-colors ${
-              done ? 'border-accent-green/30' : photoDue ? 'border-teal-500/40' : 'border-transparent'
+            className={`bg-surface rounded-2xl overflow-hidden flex border transition-all duration-300 ${
+              done
+                ? 'border-accent-green/30'
+                : isPhotoTask
+                  ? 'border-teal-500/40'
+                  : 'border-transparent'
             }`}
           >
-            <div className={`w-12 flex items-center justify-center shrink-0 ${colorClass}`}>
+            <button
+              type="button"
+              onClick={openPhotoOrInfo}
+              className={`w-12 flex items-center justify-center shrink-0 ${colorClass}`}
+              aria-label={
+                isPhotoTask ? 'Tirar foto do shape' : `Abrir explicação de ${task.title}`
+              }
+            >
               <span className="text-xl">{task.icon}</span>
-            </div>
-            <div className="flex-1 py-3 pr-2 pl-2.5 flex items-start justify-between gap-2">
+            </button>
+            <button
+              type="button"
+              onClick={openPhotoOrInfo}
+              className="flex-1 py-3 pr-2 pl-2.5 flex items-start text-left gap-2 min-w-0"
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <p
@@ -391,72 +450,70 @@ export function DailyTasksPanel({
                   >
                     {task.title}
                   </p>
-                  {photoDue && (
+                  {isPhotoTask && !done && (
                     <span className="text-[9px] font-bold text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded shrink-0">
                       Hoje
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setInfoTask(task)}
-                    className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center shrink-0 hover:bg-neutral-700 transition-colors"
-                    aria-label={`Info sobre ${task.title}`}
-                  >
-                    <Info size={13} className="text-neutral-400" />
-                  </button>
+                  {!isPhotoTask && (
+                    <span className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center shrink-0">
+                      <Info size={13} className="text-neutral-400" />
+                    </span>
+                  )}
                 </div>
                 <p
                   className={`text-xs mt-0.5 leading-relaxed ${
                     done ? 'text-neutral-600 line-through' : 'text-neutral-500'
                   }`}
                 >
-                  {task.previewHint}
+                  {done && isPhotoTask ? 'Foto registrada' : task.previewHint}
                 </p>
               </div>
-              {task.type === 'check' && (
-                <button
-                  type="button"
-                  onClick={() => toggleCheck(task.id)}
-                  className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
-                    done
-                      ? 'bg-green-500 border-green-500'
-                      : 'border-neutral-600 bg-neutral-800/50'
-                  }`}
-                >
-                  {done && <Check size={16} className="text-white" />}
-                </button>
-              )}
-              {task.type === 'action' && task.id === 'photo' && (
-                <button
-                  type="button"
-                  onClick={() => photoDue && !done && setShowPhotoCheckIn(true)}
-                  disabled={!photoDue || done}
-                  className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all mt-0.5 ${
-                    done
-                      ? 'bg-green-500 border-green-500'
-                      : photoDue
-                        ? 'border-teal-500 bg-teal-500/15 text-teal-500'
-                        : 'border-app-border bg-app-track text-app-subtle opacity-50'
-                  }`}
-                >
-                  {done ? <Check size={16} className="text-white" /> : <Camera size={16} />}
-                </button>
-              )}
-              {task.type === 'action' && task.id !== 'photo' && (
-                <button
-                  type="button"
-                  className="w-9 h-9 rounded-xl bg-app-track flex items-center justify-center shrink-0 mt-0.5"
-                >
-                  <Plus size={16} />
-                </button>
-              )}
-            </div>
+            </button>
+            {task.type === 'check' && (
+              <button
+                type="button"
+                onClick={() => toggleCheck(task.id)}
+                className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all mt-3 mr-2 ${
+                  done
+                    ? 'bg-green-500 border-green-500'
+                    : 'border-neutral-600 text-neutral-400 bg-neutral-800/50 animate-task-check'
+                }`}
+                aria-label={done ? `Desmarcar ${task.title}` : `Marcar ${task.title} como concluída`}
+              >
+                {done && <Check size={16} className="text-white" />}
+              </button>
+            )}
+            {isPhotoTask && (
+              <button
+                type="button"
+                onClick={() => !done && setShowPhotoCheckIn(true)}
+                disabled={done}
+                className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all mt-3 mr-2 ${
+                  done
+                    ? 'bg-green-500 border-green-500'
+                    : 'border-teal-500 bg-teal-500/15 text-teal-500 animate-task-check'
+                }`}
+                aria-label={done ? 'Foto já registrada' : 'Tirar foto do shape'}
+              >
+                {done ? <Check size={16} className="text-white" /> : <Camera size={16} />}
+              </button>
+            )}
+            {task.type === 'action' && task.id !== 'photo' && (
+              <button
+                type="button"
+                className="w-9 h-9 rounded-xl bg-app-track flex items-center justify-center shrink-0 mt-3 mr-2"
+              >
+                <Plus size={16} />
+              </button>
+            )}
           </div>
         )
       })}
     </div>
     )
   }
+
 
   return (
     <div className="animate-fade-in">
@@ -487,8 +544,24 @@ export function DailyTasksPanel({
             Hoje · Dia {programDay}
           </h2>
           <span className="text-sm font-bold text-neutral-500 tabular-nums">
-            {completedCount}/{checkTotal}
+            {missionProgress.done}/{missionProgress.total}
           </span>
+        </div>
+      )}
+
+      {showPartialCompleteCta && (
+        <div className="mb-4 rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4">
+          <p className="text-sm text-neutral-300 leading-relaxed mb-3">
+            Você concluiu {progressPctOfDay}% das missões ({missionProgress.done} de{' '}
+            {missionProgress.total}). Pode seguir nas que faltam ou fechar o dia assim mesmo.
+          </p>
+          <button
+            type="button"
+            onClick={() => markCurrentDayComplete({ allowPartial: true })}
+            className="w-full py-3 rounded-xl border border-neutral-700 bg-neutral-900 text-neutral-200 text-sm font-semibold hover:bg-neutral-800 hover:border-neutral-600 transition-colors"
+          >
+            Completar o dia mesmo assim
+          </button>
         </div>
       )}
 
@@ -564,7 +637,8 @@ export function DailyTasksPanel({
           {allDone && (
             <div className="flex items-center justify-between mb-3 px-1">
               <p className="text-accent-green text-sm font-medium">
-                Tudo cumprido hoje — {completedCount} hábito{completedCount !== 1 ? 's' : ''}
+                Dia finalizado — {missionProgress.done} de {missionProgress.total}{' '}
+                {missionProgress.total !== 1 ? 'missões' : 'missão'}
               </p>
               <button
                 type="button"

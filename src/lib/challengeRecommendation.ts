@@ -14,29 +14,29 @@ export type ChallengeRecommendationCopy = {
 export const CHALLENGE_RECOMMENDATION: Record<ChallengeId, ChallengeRecommendationCopy> = {
   iniciante: {
     badgeEmoji: '🟢',
-    badgeLabel: 'DESAFIO DESAFIANTE',
-    challengeTitle: 'Desafio Desafiante',
-    headline: 'Recomendamos o Desafio Desafiante para começar com leveza.',
+    badgeLabel: 'DESAFIO EXPLORADOR',
+    challengeTitle: 'Desafio Explorador',
+    headline: 'Recomendamos o Desafio Explorador para começar com leveza.',
     whyTitle: 'Por quê?',
     whyLines: [
       'Você ainda está criando consistência.',
-      'O Desafio Desafiante oferece a melhor chance de completar os 90 dias.',
+      'O Desafio Explorador oferece a melhor chance de completar os 90 dias.',
     ],
     accentClass: 'border-emerald-500/30 bg-emerald-500/10',
-    ctaLabel: 'Começar no Desafio Desafiante',
+    ctaLabel: 'Começar no Desafio Explorador',
   },
   intermediario: {
     badgeEmoji: '🔵',
-    badgeLabel: 'DESAFIO DOMINANTE',
-    challengeTitle: 'Desafio Dominante',
-    headline: 'Recomendamos o Desafio Dominante — nível moderado nos 90 dias.',
+    badgeLabel: 'DESAFIO DESAFIANTE',
+    challengeTitle: 'Desafio Desafiante',
+    headline: 'Recomendamos o Desafio Desafiante — nível moderado nos 90 dias.',
     whyTitle: 'Por quê?',
     whyLines: [
       'Você já tem uma boa base de hábitos.',
-      'O Desafio Dominante combina exigência e consistência para o seu momento.',
+      'O Desafio Desafiante combina exigência e consistência para o seu momento.',
     ],
     accentClass: 'border-sky-500/30 bg-sky-500/10',
-    ctaLabel: 'Começar no Desafio Dominante',
+    ctaLabel: 'Começar no Desafio Desafiante',
   },
   implacavel: {
     badgeEmoji: '🔥',
@@ -58,4 +58,4 @@ export function getChallengeRecommendation(id: ChallengeId): ChallengeRecommenda
 }
 
 export const DIFFICULTY_HINT =
-  '90 dias para todos · Desafio Desafiante, Dominante e Implacável são níveis que você escolhe agora.'
+  '90 dias para todos · Explorador, Desafiante e Implacável são níveis que você escolhe agora.'

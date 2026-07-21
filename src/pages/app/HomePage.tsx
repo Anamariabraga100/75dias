@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { AppShell } from '../../components/layout/AppShell'
 import { ChallengePreviewModal } from '../../components/ui/ChallengePreviewModal'
 import { ActiveChallengeHome } from '../../components/app/home/ActiveChallengeHome'
 import { ChallengeDifficultyPicker } from '../../components/app/progression/ChallengeDifficultyPicker'
+import { InvestidaBreakModal } from '../../components/app/InvestidaBreakModal'
 import {
   useAppStore,
   type ChallengeId,
@@ -11,8 +12,19 @@ import {
 
 export function HomePage() {
   const tasksRef = useRef<HTMLDivElement>(null)
-  const { challengeAccepted, acceptChallenge } = useAppStore()
+  const {
+    challengeAccepted,
+    acceptChallenge,
+    checkInvestidaStreak,
+    investidaNotice,
+    clearInvestidaNotice,
+  } = useAppStore()
   const [previewId, setPreviewId] = useState<ChallengeId | null>(null)
+
+  useEffect(() => {
+    if (!challengeAccepted) return
+    checkInvestidaStreak()
+  }, [challengeAccepted, checkInvestidaStreak])
 
   const openPreview = (id: ChallengeId) => {
     setPreviewId(id)
@@ -52,6 +64,10 @@ export function HomePage() {
           onAccept={proceedToAccept}
           onClose={() => setPreviewId(null)}
         />
+      )}
+
+      {investidaNotice && (
+        <InvestidaBreakModal notice={investidaNotice} onClose={clearInvestidaNotice} />
       )}
     </AppShell>
   )

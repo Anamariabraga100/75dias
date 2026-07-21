@@ -18,7 +18,7 @@ export function ProgressInvestidaCard({ investidaDays, recordDays }: ProgressInv
             {investidaDays}
           </p>
           <p className="text-neutral-400 text-sm mt-1">
-            dia{investidaDays !== 1 ? 's' : ''} no programa
+            dia{investidaDays !== 1 ? 's' : ''} seguidos
           </p>
         </div>
 

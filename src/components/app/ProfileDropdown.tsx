@@ -32,9 +32,11 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
     challengeAccepted,
     challengeId,
     currentDay,
+    investidaStreak,
     paymentComplete,
     subscriptionStatus,
     quitChallenge,
+    evolveToTier,
   } = useAppStore()
 
   const displayName = formatPreferredName(name)
@@ -67,6 +69,12 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
 
   const handleConfirmQuit = () => {
     quitChallenge()
+    setQuitConfirmOpen(false)
+    navigate('/app', { replace: true })
+  }
+
+  const handleDowngradeToBasic = () => {
+    evolveToTier('iniciante')
     setQuitConfirmOpen(false)
     navigate('/app', { replace: true })
   }
@@ -160,7 +168,10 @@ export function ProfileDropdown({ anchorRef, open, onClose }: ProfileDropdownPro
           type="quit"
           challengeId={challengeId}
           currentDay={currentDay}
+          investidaStreak={investidaStreak}
+          userName={displayName}
           onConfirm={handleConfirmQuit}
+          onDowngradeToBasic={handleDowngradeToBasic}
           onCancel={() => setQuitConfirmOpen(false)}
         />
       )}

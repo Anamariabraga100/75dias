@@ -42,9 +42,9 @@ export function PhotoCheckInSheet({ day, onRegister, onClose }: PhotoCheckInShee
         <div className="w-14 h-14 rounded-2xl bg-teal-500/15 flex items-center justify-center mx-auto mb-4">
           <Camera size={26} className="text-teal-500" />
         </div>
-        <h3 className="font-bold text-lg text-center text-app-fg mb-1">Check-in dia {day}</h3>
+        <h3 className="font-bold text-lg text-center text-app-fg mb-1">Tire a foto do shape</h3>
         <p className="text-app-muted text-sm text-center leading-relaxed mb-5">
-          Mesmo lugar, mesma pose e mesma luz do dia 1. É assim que a evolução fica visível.
+          Dia {day} — mesmo lugar, pose e luz de sempre.
         </p>
 
         <ul className="text-xs text-app-muted space-y-2 mb-5 bg-surface-light rounded-xl p-3 border border-app-border">

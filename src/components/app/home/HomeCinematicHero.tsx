@@ -75,7 +75,11 @@ export function HomeCinematicHero({
                 {streakDays} dia{streakDays !== 1 ? 's' : ''}
               </p>
               <p className="text-[10px] text-neutral-400 mt-0.5">
-                {streakDays >= 7 ? 'Ritmo imparável.' : 'Não quebre amanhã.'}
+                {streakDays === 0
+                  ? 'Zerou — recomece hoje.'
+                  : streakDays >= 7
+                    ? 'Ritmo imparável.'
+                    : 'Não quebre amanhã.'}
               </p>
             </div>
 

@@ -23,18 +23,22 @@ export function ProgressPage() {
     shieldedDays,
     totalXp,
     disciplineShields,
+    investidaStreak,
   } = useAppStore()
 
   const displayDay = getDisplayDay(challengeAccepted, currentDay)
 
   const recordDays =
     challengeId && challengeAccepted
-      ? computePeakStreak(
-          challengeId,
-          displayDay,
-          taskChecksByDay,
-          mirrorPhotos,
-          shieldedDays
+      ? Math.max(
+          investidaStreak,
+          computePeakStreak(
+            challengeId,
+            displayDay,
+            taskChecksByDay,
+            mirrorPhotos,
+            shieldedDays
+          )
         )
       : 1
 
@@ -60,7 +64,7 @@ export function ProgressPage() {
 
             <ProgressNextConquest displayDay={displayDay} />
 
-            <ProgressInvestidaCard investidaDays={displayDay} recordDays={recordDays} />
+            <ProgressInvestidaCard investidaDays={investidaStreak} recordDays={recordDays} />
 
             <ProgressXpCard totalXp={totalXp} disciplineShields={disciplineShields} />
 

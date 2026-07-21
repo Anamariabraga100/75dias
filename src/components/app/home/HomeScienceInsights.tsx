@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Brain, Check, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react'
+import { Brain, Check, ChevronLeft, ChevronRight, Lightbulb, Sparkles } from 'lucide-react'
 import { getAccentStyle, getDailyScienceCards } from '../../../lib/habitScience'
 import { useAppStore } from '../../../store/useAppStore'
 
@@ -9,15 +9,18 @@ type HomeScienceInsightsProps = {
 
 export function HomeScienceInsights({ displayDay }: HomeScienceInsightsProps) {
   const { readScienceCardIds, markScienceCardRead } = useAppStore()
-  const cards = getDailyScienceCards(displayDay, 2)
+  const cards = getDailyScienceCards(displayDay, 6)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [claimPulse, setClaimPulse] = useState(false)
 
   const card = cards[activeIndex]
   const style = getAccentStyle(card.accent)
   const isRead = readScienceCardIds.includes(card.id)
 
   const markRead = () => {
+    setClaimPulse(true)
     markScienceCardRead(card.id)
+    window.setTimeout(() => setClaimPulse(false), 600)
   }
 
   const goPrev = () => {
@@ -39,7 +42,7 @@ export function HomeScienceInsights({ displayDay }: HomeScienceInsightsProps) {
             <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-400">
               Ciência dos hábitos
             </h2>
-            <p className="text-[11px] text-neutral-600 mt-0.5">Aprenda em 30 segundos</p>
+            <p className="text-[11px] text-neutral-600 mt-0.5">Estudos e insights rápidos</p>
           </div>
         </div>
         {cards.length > 1 && (
@@ -65,7 +68,7 @@ export function HomeScienceInsights({ displayDay }: HomeScienceInsightsProps) {
       </div>
 
       <div
-        className={`rounded-3xl border ${style.border} ${style.bg} p-4 transition-all duration-300`}
+        className={`rounded-3xl border ${style.border} ${style.bg} p-4 shadow-[0_0_28px_rgba(56,189,248,0.08)]`}
       >
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-2xl bg-black/30 flex items-center justify-center shrink-0 text-2xl">
@@ -93,16 +96,19 @@ export function HomeScienceInsights({ displayDay }: HomeScienceInsightsProps) {
           <button
             type="button"
             onClick={markRead}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-black/25 border border-white/5 text-sm font-semibold text-neutral-300 hover:bg-black/40 hover:text-white transition-colors"
+            className={`mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-black text-sm font-black transition-transform ${
+              claimPulse ? 'scale-95' : 'animate-xp-claim'
+            }`}
           >
-            <Lightbulb size={15} className={style.text} />
+            <Sparkles size={15} />
+            <Lightbulb size={15} />
             Entendi · +10 XP
           </button>
         )}
       </div>
 
       {cards.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-3">
+        <div className="flex justify-center gap-1.5 mt-3 flex-wrap">
           {cards.map((c, i) => (
             <button
               key={c.id}

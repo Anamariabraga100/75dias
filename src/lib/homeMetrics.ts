@@ -14,44 +14,50 @@ export const ACHIEVEMENT_DEFS = [
   {
     id: 'day-1',
     days: 1,
+    kind: 'streak' as const,
     emoji: '🏅',
     title: 'Primeiro passo',
-    description: 'Complete seu primeiro dia',
+    description: 'Complete seu primeiro dia de investida',
   },
   {
     id: 'day-5',
     days: 5,
+    kind: 'streak' as const,
     emoji: '🎯',
     title: 'Foco ativado',
-    description: 'Complete 5 dias seguidos',
+    description: 'Mantenha 5 dias de investida seguidos',
   },
   {
     id: 'day-15',
     days: 15,
+    kind: 'streak' as const,
     emoji: '🧠',
     title: 'Mentalidade forte',
-    description: 'Complete 15 dias seguidos',
+    description: 'Mantenha 15 dias de investida seguidos',
   },
   {
     id: 'day-30',
     days: 30,
+    kind: 'streak' as const,
     emoji: '⚡',
     title: '1 mês de disciplina',
-    description: 'Complete 30 dias seguidos',
+    description: 'Mantenha 30 dias de investida seguidos',
   },
   {
     id: 'day-60',
     days: 60,
+    kind: 'streak' as const,
     emoji: '🔥',
     title: 'Metade do caminho',
-    description: 'Complete 60 dias seguidos',
+    description: 'Mantenha 60 dias de investida seguidos',
   },
   {
     id: 'day-90',
     days: 90,
+    kind: 'journey' as const,
     emoji: '🏆',
     title: 'Reset completo',
-    description: 'Conclua os 90 dias',
+    description: 'Conclua os 90 dias do programa',
   },
 ] as const
 
@@ -128,18 +134,28 @@ export function estimateTimeInvested(completedDays: number): string {
   return `${hours}h ${mins.toString().padStart(2, '0')}m`
 }
 
-export function getAchievementStatuses(displayDay: number, todayComplete: boolean): AchievementStatus[] {
-  const effectiveProgress = todayComplete ? displayDay : Math.max(0, displayDay - 1)
+/**
+ * Conquistas de "dias seguidos" usam a investida (calendário).
+ * A de 90 dias usa o progresso do programa.
+ * Se a investida zerar, o progresso das conquistas de sequência também zera.
+ */
+export function getAchievementStatuses(
+  investidaStreak: number,
+  displayDay: number
+): AchievementStatus[] {
+  const streakProgress = Math.max(0, investidaStreak)
+  const journeyProgress = Math.max(0, displayDay)
 
   return ACHIEVEMENT_DEFS.map((achievement) => {
-    const unlocked =
-      effectiveProgress >= achievement.days ||
-      (displayDay === achievement.days && todayComplete)
+    const progressRaw =
+      achievement.kind === 'streak' ? streakProgress : journeyProgress
+    const progress = Math.min(progressRaw, achievement.days)
+    const unlocked = progressRaw >= achievement.days
 
     return {
       ...achievement,
       unlocked,
-      progress: Math.min(effectiveProgress, achievement.days),
+      progress,
     }
   })
 }

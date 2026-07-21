@@ -14,22 +14,22 @@ export const LEVEL_META: Record<
   }
 > = {
   iniciante: {
-    label: 'Desafiante',
+    label: 'Explorador',
     level: 1,
     intensity: 'Leve',
     imagePosition: 'object-[center_15%]',
-    ctaCard: 'Começar no Desafio Desafiante',
-    ctaPreview: 'Começar no Desafio Desafiante',
-    ctaConfirm: 'Começar no Desafio Desafiante',
+    ctaCard: 'Começar no Desafio Explorador',
+    ctaPreview: 'Começar no Desafio Explorador',
+    ctaConfirm: 'Começar no Desafio Explorador',
   },
   intermediario: {
-    label: 'Dominante',
+    label: 'Desafiante',
     level: 2,
     intensity: 'Moderado',
     imagePosition: 'object-[center_20%]',
-    ctaCard: 'Começar no Desafio Dominante',
-    ctaPreview: 'Começar no Desafio Dominante',
-    ctaConfirm: 'Começar no Desafio Dominante',
+    ctaCard: 'Começar no Desafio Desafiante',
+    ctaPreview: 'Começar no Desafio Desafiante',
+    ctaConfirm: 'Começar no Desafio Desafiante',
   },
   implacavel: {
     label: 'Implacável',
@@ -79,59 +79,51 @@ export function ChallengeLevelCard({
 
   return (
     <div
-      className={`relative rounded-3xl overflow-hidden border transition-all ${
-        isActive ? 'border-accent-blue/50 ring-1 ring-accent-blue/30' : 'border-neutral-800'
-      } ${isDisabled ? 'opacity-45' : ''}`}
+      className={`relative rounded-2xl overflow-hidden border transition-all ${
+        isActive
+          ? 'border-white/40 ring-1 ring-white/20'
+          : isDisabled
+            ? 'border-neutral-800 opacity-50'
+            : 'border-neutral-800'
+      }`}
     >
-      <div className="relative w-full aspect-[3/4] max-h-[min(68vw,280px)]">
+      <div className="relative h-40">
         <img
           src={c.image}
           alt={meta.label}
           className={`absolute inset-0 w-full h-full object-cover ${meta.imagePosition}`}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
-
-        {isRecommended && !isActive && (
-          <span className="absolute top-3 right-3 z-10 bg-accent-blue text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">
+            Nível {meta.level} · {meta.intensity}
+          </p>
+          <h3 className="text-xl font-black text-white">{meta.label}</h3>
+          <IntensityDots level={meta.level} />
+        </div>
+        {isRecommended && (
+          <span className="absolute top-3 right-3 text-[10px] font-bold bg-accent-green text-black px-2 py-1 rounded-full">
             Recomendado
           </span>
         )}
-        {isActive && (
-          <span className="absolute top-3 right-3 z-10 bg-accent-green text-black text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-            Ativo
-          </span>
-        )}
-
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shadow-md ${c.badgeColor}`}>
-            Nível {meta.level}
-          </span>
-          <span className="text-white/80 text-xs font-medium drop-shadow-md">{meta.intensity}</span>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-5 pt-20 bg-gradient-to-t from-black via-black/70 to-transparent">
-          <h3 className="text-2xl font-bold leading-tight drop-shadow-lg">{meta.label}</h3>
-          <p className="text-neutral-300 text-sm mt-2 line-clamp-2 drop-shadow-md leading-relaxed">
-            {c.tagline}
-          </p>
-          <IntensityDots level={meta.level} />
-        </div>
       </div>
 
-      <div className="px-5 py-5 bg-surface border-t border-neutral-800/80">
+      <div className="p-4 bg-neutral-950">
+        <p className="text-neutral-400 text-sm mb-3 leading-relaxed">{c.tagline}</p>
+        <ul className="space-y-1.5 mb-4">
+          {c.tags.slice(0, isImplacavel ? 5 : 4).map((tag) => (
+            <li key={tag} className="text-xs text-neutral-300">
+              {tag}
+            </li>
+          ))}
+        </ul>
+
         {isActive ? (
-          <Button variant="danger" className="!py-3.5" onClick={onQuit}>
+          <Button variant="danger" onClick={onQuit} className="w-full">
             Desistir do desafio
           </Button>
         ) : (
-          <Button
-            variant="primary"
-            className={`!py-3.5 ${
-              isImplacavel ? '!bg-accent-orange !text-black hover:!bg-orange-400' : ''
-            }`}
-            disabled={isDisabled}
-            onClick={onStartLevel}
-          >
+          <Button onClick={onStartLevel} disabled={isDisabled} className="w-full">
             {meta.ctaCard}
           </Button>
         )}

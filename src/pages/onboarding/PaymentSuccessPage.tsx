@@ -109,8 +109,8 @@ export function PaymentSuccessPage() {
               </p>
               <ul className="space-y-2.5 text-sm text-neutral-300">
                 <li className="flex items-center gap-2">
-                  <span className="text-accent-green">✓</span> Todos os níveis (Desafiante,
-                  Desafiante, Dominante, Implacável)
+                  <span className="text-accent-green">✓</span> Todos os níveis (Explorador,
+                  Desafiante, Implacável)
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-accent-green">✓</span> Acompanhamento diário de hábitos

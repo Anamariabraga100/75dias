@@ -121,30 +121,30 @@ export function buildRecommendationWhy(
     if (signals.weakVices) {
       return [
         'Há hábitos que ainda puxam sua energia e foco para baixo.',
-        'O Desafio Desafiante começa leve — ideal para criar base antes de subir.',
+        'O Desafio Explorador começa leve — ideal para criar base antes de subir.',
       ]
     }
     if (signals.weakRoutine) {
       return [
         'Sua rotina ainda oscila bastante no dia a dia.',
-        'O Desafio Desafiante começa leve — ideal para criar consistência sem sobrecarga.',
+        'O Desafio Explorador começa leve — ideal para criar consistência sem sobrecarga.',
       ]
     }
     if (signals.weakExercise) {
       return [
         'Treino e movimento ainda não fazem parte fixa da sua semana.',
-        'O Desafio Desafiante ajuda a construir o hábito antes de subir a intensidade.',
+        'O Desafio Explorador ajuda a construir o hábito antes de subir a intensidade.',
       ]
     }
     if (goals.includes('burnout') || signals.weakEnergy) {
       return [
         'Seu perfil pede recuperação antes de exigir demais do corpo.',
-        'O Desafio Desafiante respeita seu ritmo e aumenta a chance de completar os 90 dias.',
+        'O Desafio Explorador respeita seu ritmo e aumenta a chance de completar os 90 dias.',
       ]
     }
     return [
       'Com base nas suas respostas, ainda há espaço para fortalecer hábitos básicos.',
-      'O Desafio Desafiante oferece a melhor chance de completar os 90 dias com sucesso.',
+      'O Desafio Explorador oferece a melhor chance de completar os 90 dias com sucesso.',
     ]
   }
 
@@ -170,20 +170,20 @@ export function buildRecommendationWhy(
   if (signals.weakVices) {
     return [
       'Você tem boa base, mas alguns hábitos ainda pedem atenção.',
-      'O Desafio Dominante equilibra exigência e consistência para o seu momento.',
+      'O Desafio Desafiante equilibra exigência e consistência para o seu momento.',
     ]
   }
 
   if (signals.strongRoutine || disciplineScore >= 55) {
     return [
       'Você já tem uma base de hábitos, mas ainda há pontos para ajustar.',
-      'O Desafio Dominante equilibra desafio e consistência para o seu momento.',
+      'O Desafio Desafiante equilibra desafio e consistência para o seu momento.',
     ]
   }
 
   return [
     'Seu perfil está entre o iniciante e o avançado.',
-    'O Desafio Dominante será mais compatível com seu momento atual.',
+    'O Desafio Desafiante será mais compatível com seu momento atual.',
   ]
 }
 

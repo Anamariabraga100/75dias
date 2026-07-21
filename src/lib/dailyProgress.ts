@@ -17,6 +17,8 @@ export type DailyProgressSnapshot = {
   disciplineShields: number
   readScienceCardIds: string[]
   seenTierUnlockModals: string[]
+  investidaStreak: number
+  lastInvestidaDate: string | null
 }
 
 export function buildDailyProgressSnapshot(state: AppState): DailyProgressSnapshot {
@@ -35,6 +37,8 @@ export function buildDailyProgressSnapshot(state: AppState): DailyProgressSnapsh
     disciplineShields: state.disciplineShields,
     readScienceCardIds: state.readScienceCardIds,
     seenTierUnlockModals: state.seenTierUnlockModals,
+    investidaStreak: state.investidaStreak,
+    lastInvestidaDate: state.lastInvestidaDate,
   }
 }
 
@@ -104,6 +108,9 @@ export function parseDailyProgressSnapshot(raw: unknown): DailyProgressSnapshot 
       typeof row.disciplineShields === 'number' ? row.disciplineShields : 0,
     readScienceCardIds: normalizeStringArray(row.readScienceCardIds),
     seenTierUnlockModals: normalizeStringArray(row.seenTierUnlockModals),
+    investidaStreak: typeof row.investidaStreak === 'number' ? Math.max(0, row.investidaStreak) : 0,
+    lastInvestidaDate:
+      typeof row.lastInvestidaDate === 'string' ? row.lastInvestidaDate : null,
   }
 }
 
@@ -142,6 +149,8 @@ export function mergeDailyProgress(
       disciplineShields: cloud.disciplineShields,
       readScienceCardIds: cloud.readScienceCardIds,
       seenTierUnlockModals: cloud.seenTierUnlockModals,
+      investidaStreak: cloud.investidaStreak,
+      lastInvestidaDate: cloud.lastInvestidaDate,
     }
   }
 
@@ -178,6 +187,15 @@ export function mergeDailyProgress(
     disciplineShields: Math.max(local.disciplineShields, cloud.disciplineShields),
     readScienceCardIds: mergedScience,
     seenTierUnlockModals: mergedTierModals,
+    investidaStreak: Math.max(local.investidaStreak, cloud.investidaStreak),
+    lastInvestidaDate:
+      !local.lastInvestidaDate
+        ? cloud.lastInvestidaDate
+        : !cloud.lastInvestidaDate
+          ? local.lastInvestidaDate
+          : local.lastInvestidaDate >= cloud.lastInvestidaDate
+            ? local.lastInvestidaDate
+            : cloud.lastInvestidaDate,
   }
 }
 

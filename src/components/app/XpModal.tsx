@@ -79,8 +79,8 @@ export function XpModal({ onClose }: XpModalProps) {
               <p className="font-bold text-emerald-300 text-sm">Escudo adicionado ao inventário!</p>
               <p className="text-emerald-400/80 text-xs mt-1 leading-relaxed">
                 Você tem {disciplineShields} escudo{disciplineShields !== 1 ? 's' : ''} guardado
-                {disciplineShields !== 1 ? 's' : ''}. Use na missão do dia se não conseguir completar
-                todas as tarefas.
+                {disciplineShields !== 1 ? 's' : ''}. Se esquecer de abrir o app, ele ativa sozinho e
+                salva sua investida.
               </p>
             </div>
           </div>
@@ -97,8 +97,8 @@ export function XpModal({ onClose }: XpModalProps) {
                   {disciplineShields} escudo{disciplineShields !== 1 ? 's' : ''} no inventário
                 </p>
                 <p className="text-sky-200/70 text-xs mt-1 leading-relaxed">
-                  Vá em Início → Missão do dia → &quot;Usar Escudo&quot; se não completar o dia. Protege sua
-                  sequência.
+                  Se você esquecer de entrar no app, o escudo ativa sozinho e protege a sequência —
+                  você verá um aviso na próxima vez.
                 </p>
               </div>
             </div>

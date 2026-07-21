@@ -20,9 +20,9 @@ export const TIER_INFO: Record<ChallengeId, TierInfo> = {
   iniciante: {
     id: 'iniciante',
     emoji: '🌱',
-    label: 'Desafiante',
+    label: 'Explorador',
     unlockDay: 1,
-    badge: '🌱 Desafiante',
+    badge: '🌱 Explorador',
     theme: 'green',
     unlockHint: 'Disponível desde o Dia 1',
     features: ['4 missões diárias', 'Dashboard básico', 'Foco em consistência'],
@@ -30,9 +30,9 @@ export const TIER_INFO: Record<ChallengeId, TierInfo> = {
   intermediario: {
     id: 'intermediario',
     emoji: '💪',
-    label: 'Dominante',
+    label: 'Desafiante',
     unlockDay: 30,
-    badge: '💪 Dominante',
+    badge: '💪 Desafiante',
     theme: 'amber',
     unlockHint: 'Desbloqueia ao completar 30 dias do desafio',
     features: ['Estatísticas detalhadas', 'Novos hábitos', 'Conquistas especiais'],

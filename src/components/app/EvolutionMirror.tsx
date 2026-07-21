@@ -3,8 +3,6 @@ import { ArrowRight, Camera, Lock } from 'lucide-react'
 import { PhotoCheckInSheet } from './PhotoCheckInSheet'
 import { useAppStore } from '../../store/useAppStore'
 import {
-  PHOTO_INTERVAL_DAYS,
-  daysUntilNextPhoto,
   getPhotoDaysUpTo,
   isPhotoDay,
   MONTHLY_COMPARISONS,
@@ -59,7 +57,6 @@ export function EvolutionMirror({ displayDay }: EvolutionMirrorProps) {
   if (!isImplacavel) return null
 
   const photoDueToday = isPhotoDay(displayDay)
-  const nextPhotoIn = daysUntilNextPhoto(displayDay)
   const registeredDays = getPhotoDaysUpTo(displayDay).filter((d) => mirrorPhotos[d])
   const latestDay =
     registeredDays.length > 0 ? Math.max(...registeredDays) : displayDay >= 1 ? 1 : 1
@@ -67,6 +64,10 @@ export function EvolutionMirror({ displayDay }: EvolutionMirrorProps) {
   const latestUrl = mirrorPhotos[latestDay] ?? startUrl
   const hasComparison = Boolean(startUrl && latestUrl && latestDay > 1)
   const nextMonthly = MONTHLY_COMPARISONS.find((m) => displayDay < m.to)
+  const hasAnyPhoto = registeredDays.length > 0
+
+  // Fora do dia de foto: só mostra o espelho se já existir foto registrada.
+  if (!photoDueToday && !hasAnyPhoto) return null
 
   return (
     <>
@@ -74,7 +75,9 @@ export function EvolutionMirror({ displayDay }: EvolutionMirrorProps) {
         <div>
           <p className="text-app-muted text-xs uppercase tracking-wide mb-0.5">Evolução no espelho</p>
           <p className="text-app-subtle text-xs">
-            Mesmo ângulo, mesma luz — a comparação que importa
+            {photoDueToday
+              ? 'Tire a foto do shape hoje — mesmo ângulo e luz'
+              : 'Suas fotos de evolução'}
           </p>
         </div>
 
@@ -88,22 +91,10 @@ export function EvolutionMirror({ displayDay }: EvolutionMirrorProps) {
               <Camera size={18} className="text-teal-500" />
             </div>
             <div>
-              <p className="font-semibold text-sm text-teal-600">Registrar foto de hoje</p>
-              <p className="text-app-muted text-xs">Dia {displayDay} — check-in de evolução</p>
+              <p className="font-semibold text-sm text-teal-600">Tire a foto do shape</p>
+              <p className="text-app-muted text-xs">Dia {displayDay} — toque para registrar</p>
             </div>
           </button>
-        )}
-
-        {!photoDueToday && (
-          <p className="text-app-muted text-xs px-1">
-            Próximo registro em {nextPhotoIn} dia{nextPhotoIn !== 1 ? 's' : ''} (dias 1, 4, 7…)
-          </p>
-        )}
-
-        {!startUrl && photoDueToday && (
-          <p className="text-app-muted text-xs px-1 text-center">
-            Registre a foto do dia 1 para ativar a comparação visual.
-          </p>
         )}
 
         {startUrl && (
@@ -115,48 +106,50 @@ export function EvolutionMirror({ displayDay }: EvolutionMirrorProps) {
           />
         )}
 
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-          {getPhotoDaysUpTo(Math.min(displayDay + PHOTO_INTERVAL_DAYS * 2, 90)).map((day) => {
-            const url = mirrorPhotos[day]
-            const isFuture = day > displayDay
-            const isToday = day === displayDay
-            const isMissed = day < displayDay && !url && isPhotoDay(day)
+        {hasAnyPhoto && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {getPhotoDaysUpTo(Math.min(displayDay, 90)).map((day) => {
+              const url = mirrorPhotos[day]
+              const isFuture = day > displayDay
+              const isToday = day === displayDay
+              const isMissed = day < displayDay && !url && isPhotoDay(day)
 
-            return (
-              <div
-                key={day}
-                className={`shrink-0 w-[72px] rounded-xl overflow-hidden border ${
-                  isToday && photoDueToday && !url
-                    ? 'border-teal-500 ring-2 ring-teal-500/30'
-                    : url
-                      ? 'border-app-border'
-                      : 'border-dashed border-app-border'
-                }`}
-              >
-                <div className="aspect-[3/4] relative bg-app-track">
-                  {url ? (
-                    <img src={url} alt={`Dia ${day}`} className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-app-subtle">
-                      {isFuture ? (
-                        <Lock size={12} />
-                      ) : isMissed ? (
-                        <span className="text-[9px]">—</span>
-                      ) : (
-                        <Camera size={14} className="opacity-40" />
-                      )}
+              return (
+                <div
+                  key={day}
+                  className={`shrink-0 w-[72px] rounded-xl overflow-hidden border ${
+                    isToday && photoDueToday && !url
+                      ? 'border-teal-500 ring-2 ring-teal-500/30'
+                      : url
+                        ? 'border-app-border'
+                        : 'border-dashed border-app-border'
+                  }`}
+                >
+                  <div className="aspect-[3/4] relative bg-app-track">
+                    {url ? (
+                      <img src={url} alt={`Dia ${day}`} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-app-subtle">
+                        {isFuture ? (
+                          <Lock size={12} />
+                        ) : isMissed ? (
+                          <span className="text-[9px]">—</span>
+                        ) : (
+                          <Camera size={14} className="opacity-40" />
+                        )}
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center">
+                      <span className="text-[9px] font-bold text-white">D{day}</span>
                     </div>
-                  )}
-                  <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center">
-                    <span className="text-[9px] font-bold text-white">D{day}</span>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
 
-        {nextMonthly && (
+        {nextMonthly && hasAnyPhoto && (
           <p className="text-app-subtle text-[11px] text-center pt-1">
             Próximo destaque: {nextMonthly.label.toLowerCase()} (dia {nextMonthly.to})
           </p>

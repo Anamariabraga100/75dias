@@ -1,7 +1,6 @@
 import type { SubscriptionStatus } from './subscription'
 import { hasActiveAccess } from './subscription'
 import { useAppStore } from '../store/useAppStore'
-import { normalizeProgramDay } from './demoProgress'
 import { supabase } from './supabase'
 import {
   buildDailyProgressSnapshot,
@@ -125,6 +124,9 @@ export async function hydrateFromCloud(): Promise<boolean> {
       scheduleProfileSync()
     }
 
+    // Checa falta de dia (estilo Duolingo) depois de hidratar
+    useAppStore.getState().checkInvestidaStreak()
+
     const final = useAppStore.getState()
     return Boolean(
       final.onboardingComplete &&
@@ -152,7 +154,7 @@ export async function syncProfileToCloud() {
   const state = useAppStore.getState()
   const photosCount = Object.keys(state.mirrorPhotos).length
   const investedDays = state.challengeAccepted
-    ? normalizeProgramDay(state.currentDay)
+    ? Math.max(state.investidaStreak, 0)
     : 0
 
   await client.from('profiles').upsert(

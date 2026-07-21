@@ -32,7 +32,7 @@ export function ProgressXpCard({ totalXp, disciplineShields = 0 }: ProgressXpCar
         {disciplineShields > 0 ? (
           <span className="text-sky-300 font-semibold">
             🛡️ {disciplineShields}/{MAX_DISCIPLINE_SHIELDS} escudo
-            {disciplineShields !== 1 ? 's' : ''} no inventário — use na missão do dia se precisar
+            {disciplineShields !== 1 ? 's' : ''} — ativa sozinho se você faltar um dia
           </span>
         ) : canBuy ? (
           <span className="text-amber-400 font-semibold">

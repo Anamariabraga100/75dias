@@ -73,6 +73,8 @@ function buildCloudProgressSnapshot(
     disciplineShields: 0,
     readScienceCardIds: [],
     seenTierUnlockModals: [],
+    investidaStreak: 0,
+    lastInvestidaDate: null,
   }
 }
 

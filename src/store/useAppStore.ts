@@ -6,7 +6,7 @@ import { markStoreHydrated } from '../lib/storeHydration'
 import type { SubscriptionStatus } from '../lib/subscription'
 import { normalizeProgramDay } from '../lib/demoProgress'
 import { getDayUnlockStatus } from '../lib/dayUnlock'
-import { isDayComplete } from '../lib/streak'
+import { getDayMissionProgress, isDayComplete } from '../lib/streak'
 import {
   awardDayXp,
   awardHabitXp,
@@ -14,6 +14,12 @@ import {
   awardTierUnlockXp,
 } from '../lib/xp'
 import { DISCIPLINE_SHIELD_COST, MAX_DISCIPLINE_SHIELDS, canApplyShield } from '../lib/rewards'
+import {
+  applyInvestidaForToday,
+  evaluateInvestidaOnOpen,
+  getHardcoreProgramResetPatch,
+  type InvestidaNotice,
+} from '../lib/investida'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not' | null
 
@@ -145,6 +151,12 @@ export interface AppState {
   disciplineShields: number
   shieldedDays: number[]
   lastShieldUsedDay: number | null
+  /** Sequência civil de investida (estilo Duolingo). */
+  investidaStreak: number
+  /** YYYY-MM-DD local da última atividade que manteve a investida. */
+  lastInvestidaDate: string | null
+  /** Aviso pendente: investida quebrada ou salva por escudo. */
+  investidaNotice: InvestidaNotice | null
   authUserId: string | null
 
   setName: (name: string) => void
@@ -166,6 +178,9 @@ export interface AppState {
   markScienceCardRead: (cardId: string) => void
   purchaseDisciplineShield: () => boolean
   applyDisciplineShield: (day: number) => boolean
+  /** Checa faltas de calendário e reseta/salva investida (chamar ao abrir o app). */
+  checkInvestidaStreak: () => void
+  clearInvestidaNotice: () => void
   quitChallenge: () => void
   setStartDate: (option: StartDateOption, customDate?: string) => void
   completeOnboarding: () => void
@@ -176,7 +191,8 @@ export interface AppState {
   markPixViewed: () => void
   setUsePromoOffer: (value: boolean) => void
   registerMirrorPhoto: (day: number, photoUrl: string) => void
-  markCurrentDayComplete: () => void
+  /** Fecha o dia. Por padrão exige 100%; `allowPartial` libera a partir de 60%. */
+  markCurrentDayComplete: (options?: { allowPartial?: boolean }) => void
   advanceProgramDay: (force?: boolean) => boolean
   toggleTaskCheck: (day: number, taskId: string) => void
   markNotificationRead: (id: string) => void
@@ -253,6 +269,9 @@ const initialState = {
   disciplineShields: 0,
   shieldedDays: [] as number[],
   lastShieldUsedDay: null as number | null,
+  investidaStreak: 0,
+  lastInvestidaDate: null as string | null,
+  investidaNotice: null as InvestidaNotice | null,
   authUserId: null as string | null,
 }
 
@@ -316,6 +335,9 @@ export const useAppStore = create<AppState>()(
           xpAwardedKeys: [],
           shieldedDays: [],
           lastShieldUsedDay: null,
+          investidaStreak: 0,
+          lastInvestidaDate: null,
+          investidaNotice: null,
         })
         scheduleProfileSync()
       },
@@ -386,10 +408,26 @@ export const useAppStore = create<AppState>()(
           shieldedDays: [...state.shieldedDays, day],
           lastShieldUsedDay: day,
           dayCompletedAt: state.dayCompletedAt ?? new Date().toISOString(),
+          ...applyInvestidaForToday(state),
         })
         scheduleProfileSync()
         return true
       },
+      checkInvestidaStreak: () => {
+        const state = get()
+        const { patch, changed, hardResetProgram } = evaluateInvestidaOnOpen(state)
+        if (!changed) return
+        set({
+          ...patch,
+          ...(hardResetProgram ? getHardcoreProgramResetPatch() : {}),
+        })
+        scheduleProfileSync()
+        // Persistir consumo de escudo / reset hardcore na nuvem
+        if (hardResetProgram || patch.investidaNotice?.type === 'shield_saved') {
+          void flushProfileSync()
+        }
+      },
+      clearInvestidaNotice: () => set({ investidaNotice: null }),
       quitChallenge: () => {
         set({
           challengeId: null,
@@ -404,6 +442,9 @@ export const useAppStore = create<AppState>()(
           xpAwardedKeys: [],
           shieldedDays: [],
           lastShieldUsedDay: null,
+          investidaStreak: 0,
+          lastInvestidaDate: null,
+          investidaNotice: null,
         })
         scheduleProfileSync()
       },
@@ -450,22 +491,22 @@ export const useAppStore = create<AppState>()(
         void logMirrorPhotoToCloud(day, photoUrl)
         get().markCurrentDayComplete()
       },
-      markCurrentDayComplete: () => {
+      markCurrentDayComplete: (options) => {
         const state = get()
         if (!state.challengeAccepted || !state.challengeId) return
 
         const programDay = normalizeProgramDay(state.currentDay)
-        if (
-          !isDayComplete(
-            state.challengeId,
-            programDay,
-            state.taskChecksByDay,
-            state.mirrorPhotos,
-            state.shieldedDays
-          )
-        ) {
-          return
-        }
+        const progress = getDayMissionProgress(
+          state.challengeId,
+          programDay,
+          state.taskChecksByDay,
+          state.mirrorPhotos,
+          state.shieldedDays
+        )
+
+        // Auto (check/foto): só em 100%. Botão "mesmo assim": a partir de 60%.
+        const allowed = options?.allowPartial ? progress.canFinalize : progress.isPerfect
+        if (!allowed) return
 
         if (state.dayCompletedAt) return
 
@@ -496,6 +537,7 @@ export const useAppStore = create<AppState>()(
           dayCompletedAt: new Date().toISOString(),
           totalXp: nextXp,
           xpAwardedKeys: nextKeys,
+          ...applyInvestidaForToday(state),
         })
         scheduleProfileSync()
       },
@@ -988,28 +1030,35 @@ export const GOAL_OPTIONS: { id: Goal; emoji: string; label: string }[] = [
 export const CHALLENGES = {
   iniciante: {
     id: 'iniciante' as const,
-    name: 'Desafio Desafiante',
-    badge: 'DESAFIANTE',
+    name: 'Desafio Explorador',
+    badge: 'EXPLORADOR',
     badgeColor: 'bg-accent-green text-black',
     tagline: 'O primeiro passo — leve, possível e consistente',
     image: '/niveis/iniciante.jpg',
     tags: [
-      '🥗 Dieta básica',
+      '🥗 Alimentação com carbo e proteína de qualidade',
       '🏋️ Treino 2–3x/semana',
       '📖 Ler 2–5 páginas/dia',
-      '😴 Dormir o suficiente',
+      '😴 Dormir 7h+ pelo menos 4 dias/semana',
     ],
     tasks: [
       {
         id: 'diet',
         icon: '🥗',
-        title: 'Dieta básica',
+        title: 'Alimentação',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Faça pelo menos 3 refeições simples e evite junk food e refrigerante.',
-        weekly: 'Manter alimentação básica e regular a semana toda.',
-        previewVerb: 'Comer de forma simples e saudável',
-        previewHint: 'Comi de forma simples e saudável hoje',
+        daily:
+          'Monte refeições com carboidratos de boa qualidade (arroz, batata, aveia, fruta) e proteínas (ovo, carne, frango, peixe, whey). Evite ultraprocessados, fast food e refrigerante.',
+        weekly:
+          'Priorize comida de verdade a maior parte da semana. Se sair da linha um dia, volte no próximo sem drama.',
+        previewVerb: 'Comer com carbo e proteína de qualidade',
+        previewHint: 'Comi com carbo e proteína de qualidade — sem ultraprocessados',
+        tips: [
+          'Carbo de qualidade: arroz, batata, mandioca, aveia, pão integral, frutas.',
+          'Proteínas: ovo, frango, carne, peixe, iogurte natural, whey.',
+          'Fuja de: salgadinho, refrigerante, fast food, embutidos e doces industriais no dia a dia.',
+        ],
       },
       {
         id: 'workout',
@@ -1017,8 +1066,8 @@ export const CHALLENGES = {
         title: 'Treino moderado',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Se hoje é dia de treino: 30 min de movimento (caminhada, academia ou casa).',
-        weekly: '2 a 3 treinos por semana. Marque só nos dias que treinou.',
+        daily: 'Se hoje é dia de treino: pelo menos 30 min de movimento (caminhada, academia ou casa).',
+        weekly: '2 a 3 treinos por semana. Marque só nos dias que treinou de fato.',
         previewVerb: 'Treinar nos dias de treino',
         previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
       },
@@ -1040,37 +1089,48 @@ export const CHALLENGES = {
         subtitle: '',
         type: 'check' as const,
         daily: 'Durma pelo menos 7 horas esta noite.',
-        weekly: '5+ noites com 7h+ por semana.',
+        weekly: 'Pelo menos 4 noites com 7h+ de sono por semana.',
         previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
+        tips: [
+          'Meta: 7 horas ou mais.',
+          'Na semana: cumpra isso em pelo menos 4 dias.',
+          'Sono ruim destrói treino, humor e disciplina — trate como missão.',
+        ],
       },
     ],
   },
   intermediario: {
     id: 'intermediario' as const,
-    name: 'Desafio Dominante',
-    badge: 'DOMINANTE',
+    name: 'Desafio Desafiante',
+    badge: 'DESAFIANTE',
     badgeColor: 'bg-accent-yellow text-black',
     tagline: 'Mais exigência — corpo, mente e foco alinhados',
     image: '/niveis/intermediario.jpg',
     tags: [
-      '🍽️ Dieta moderada — sem industrializado',
+      '🍽️ Dieta limpa — carbo e proteína de qualidade',
       '🏋️ Treino 3–4x/semana',
       '📖 Ler 5–10 páginas/dia',
-      '🚫 Sem pornografia',
-      '😴 Dormir o suficiente',
+      '🚫 Zero pornografia',
+      '😴 7h+ em pelo menos 4 dias/semana',
     ],
     tasks: [
       {
         id: 'diet',
         icon: '🍽️',
-        title: 'Dieta moderada',
+        title: 'Alimentação limpa',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Evite industrializados, fast food e excesso de doces.',
-        weekly: 'Alimentação limpa na maior parte da semana.',
-        previewVerb: 'Evitar industrializados e comer limpo',
-        previewHint: 'Evitei industrializados e comi limpo hoje',
+        daily:
+          'Base do prato: carbo de qualidade + proteína. Zero ultraprocessados, fast food e excesso de doce.',
+        weekly: 'Alimentação limpa na maior parte da semana — comida de verdade primeiro.',
+        previewVerb: 'Comer limpo com carbo e proteína',
+        previewHint: 'Comi limpo — carbo e proteína, sem ultraprocessados',
+        tips: [
+          'Carbo de qualidade + proteína em quase toda refeição.',
+          'Evite ultraprocessados, refrigerante e delivery por impulso.',
+          'Se errou uma refeição, a próxima ainda pode ser limpa.',
+        ],
       },
       {
         id: 'workout',
@@ -1097,13 +1157,18 @@ export const CHALLENGES = {
       {
         id: 'noporn',
         icon: '🚫',
-        title: 'Sem pornografia',
+        title: 'Zero pornografia',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Zero pornografia. Marque ao final do dia se manteve.',
-        weekly: '7 dias limpos por semana.',
+        daily: 'Fora pornografia. Zero. Marque ao final do dia se manteve.',
+        weekly: '7 dias limpos — sem exceção.',
         previewVerb: 'Ficar longe de pornografia',
         previewHint: 'Fiquei longe de pornografia hoje',
+        tips: [
+          'Regra dura: fora. Sem “só um pouco”.',
+          'Bloqueie gatilhos (apps, horários, lugar na cama com celular).',
+          'Cada dia limpo fortalece foco e disciplina.',
+        ],
       },
       {
         id: 'sleep',
@@ -1112,9 +1177,13 @@ export const CHALLENGES = {
         subtitle: '',
         type: 'check' as const,
         daily: 'Durma pelo menos 7 horas esta noite.',
-        weekly: '5+ noites com 7h+ por semana.',
+        weekly: 'Pelo menos 4 noites com 7h+ de sono por semana.',
         previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
+        tips: [
+          'Meta diária: 7 horas ou mais.',
+          'Na semana: pelo menos 4 dias batendo essa meta.',
+        ],
       },
     ],
   },
@@ -1128,12 +1197,12 @@ export const CHALLENGES = {
     tags: [
       '📋 Dieta regrada + 1 ref. livre/semana',
       '💊 Suplementação (creatina)',
-      '🏋️ Treino 4–5x/semana',
+      '🏋️ Treino 1h · 4–5x/semana',
       '📖 Ler 10–15 páginas/dia',
-      '📷 Foto a cada 3 dias + relatórios',
-      '🚫 Zero pornografia & álcool',
-      '🚫 Zero masturbação',
-      '😴 Dormir o suficiente',
+      '📷 Foto a cada 3 dias',
+      '🚫 Zero pornografia',
+      '🍷 Álcool 80/20 — 1 dia livre/semana',
+      '😴 7h+ em pelo menos 4 dias/semana',
     ],
     tasks: [
       {
@@ -1142,10 +1211,16 @@ export const CHALLENGES = {
         title: 'Dieta regrada',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Siga sua dieta sem ultraprocessados, fast food ou doces em excesso.',
-        weekly: '1 refeição livre por semana — escolha o dia e marque os demais como cumpridos.',
+        daily:
+          'Prato com carbo de qualidade e proteína. Sem ultraprocessados, fast food ou doce em excesso.',
+        weekly: '1 refeição livre por semana — escolha o dia. Nos outros, comida limpa.',
         previewVerb: 'Seguir a dieta regrada',
         previewHint: 'Segui a dieta regrada hoje',
+        tips: [
+          'Carbo de qualidade + proteína em toda refeição principal.',
+          'Fuja de ultraprocessados — eles sabotam energia e resultado.',
+          '1 refeição livre/semana é estratégia, não desculpa para o resto da semana.',
+        ],
       },
       {
         id: 'creatine',
@@ -1164,10 +1239,16 @@ export const CHALLENGES = {
         title: 'Treino',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Se hoje é dia de treino: complete no mínimo 45 min (musculação, corrida ou similar).',
+        daily:
+          'Se hoje é dia de treino: complete no mínimo 1 hora (musculação, corrida ou similar).',
         weekly: '4 a 5 sessões por semana. Marque só nos dias em que treinou de fato.',
-        previewVerb: 'Treinar nos dias de treino',
-        previewHint: 'Treinei hoje — marque só nos dias que treinou de fato',
+        previewVerb: 'Treinar 1 hora nos dias de treino',
+        previewHint: 'Treinei pelo menos 1 hora hoje',
+        tips: [
+          'Mínimo: 60 minutos de treino real.',
+          'Aquecimento conta se fizer parte da sessão estruturada.',
+          'Marque só se treinou de verdade — honestidade é o jogo.',
+        ],
       },
       {
         id: 'read',
@@ -1186,12 +1267,15 @@ export const CHALLENGES = {
         title: 'Foto do shape',
         subtitle: '',
         type: 'action' as const,
-        daily:
-          'Se hoje é dia de registro (a cada 3 dias), tire a foto de evolução — mesmo ângulo, luz e pose.',
-        weekly:
-          '1 foto a cada 3 dias (~30 registros no Reset90). Comparação de 7 em 7 dias e destaque a cada 30 dias.',
-        previewVerb: 'Tirar foto de evolução (nos dias de registro)',
-        previewHint: 'Tirei minha foto de evolução (nos dias de registro)',
+        daily: 'Tire a foto do shape hoje — mesmo ângulo, mesma luz e mesma pose.',
+        weekly: 'Só aparece nos dias de registro. Tire a foto e pronto.',
+        previewVerb: 'Tirar a foto do shape',
+        previewHint: 'Tire a foto do shape',
+        tips: [
+          'Mesmo lugar e mesma pose de sempre.',
+          'Luz natural, sem filtro.',
+          'Corpo inteiro ou do joelho pra cima — sempre igual.',
+        ],
       },
       {
         id: 'noporn',
@@ -1199,32 +1283,32 @@ export const CHALLENGES = {
         title: 'Zero pornografia',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Nenhum acesso a pornografia. Marque ao final do dia se manteve.',
-        weekly: '7 dias limpos por semana — cada dia é uma vitória individual.',
+        daily: 'Fora pornografia. Zero acesso. Marque ao final do dia se manteve.',
+        weekly: '7 dias limpos — cada dia é uma vitória individual.',
         previewVerb: 'Ficar longe de pornografia',
         previewHint: 'Fiquei longe de pornografia hoje',
-      },
-      {
-        id: 'purity',
-        icon: '🚫',
-        title: 'Zero masturbação',
-        subtitle: '',
-        type: 'check' as const,
-        daily: 'Abstinência total. Marque ao final do dia se manteve.',
-        weekly: '7 dias seguidos sem masturbação — foco em disciplina e autocontrole.',
-        previewVerb: 'Manter abstinência',
-        previewHint: 'Mantive abstinência hoje',
+        tips: [
+          'Regra dura: fora. Sem negociar consigo mesmo.',
+          'Proteja o sono e o foco — pornografia drena os dois.',
+        ],
       },
       {
         id: 'alcohol',
         icon: '🍷',
-        title: 'Zero álcool',
+        title: 'Álcool 80/20',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Nenhuma bebida alcoólica. Marque ao final do dia.',
-        weekly: 'Semana 100% seca — zero exceções.',
-        previewVerb: 'Não beber álcool',
-        previewHint: 'Não bebi álcool hoje',
+        daily:
+          'Sem álcool hoje — ou marque se hoje é o seu único dia livre da semana (regra 80/20).',
+        weekly:
+          'Escolha 1 dia livre por semana. Nos outros 6: zero álcool. Sem “mais um dia”.',
+        previewVerb: 'Seguir a regra 80/20 do álcool',
+        previewHint: 'Segui a regra 80/20 — sem álcool (ou era meu dia livre)',
+        tips: [
+          '80/20: 6 dias secos, 1 dia livre — escolha o dia com antecedência.',
+          'No dia livre, ainda vale consciência: não transforme em excesso.',
+          'Fora do dia livre: zero. Sem negociar.',
+        ],
       },
       {
         id: 'sleep',
@@ -1232,10 +1316,15 @@ export const CHALLENGES = {
         title: 'Sono',
         subtitle: '',
         type: 'check' as const,
-        daily: 'Durma pelo menos 7 horas esta noite. Marque amanhã ao acordar.',
-        weekly: '5+ noites com 7h+ por semana para manter energia e recuperação.',
+        daily: 'Durma pelo menos 7 horas esta noite. Marque ao acordar.',
+        weekly: 'Pelo menos 4 noites com 7h+ por semana para energia e recuperação.',
         previewVerb: 'Dormir pelo menos 7 horas',
         previewHint: 'Dormi pelo menos 7 horas',
+        tips: [
+          'Meta: 7 horas ou mais.',
+          'Cumprir em pelo menos 4 dias na semana.',
+          'No Implacável, sono ruim = treino e dieta sabotados.',
+        ],
       },
     ],
   },

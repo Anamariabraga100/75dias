@@ -16,13 +16,13 @@ const TESTIMONIALS = [
     user: 'Mariana',
     emoji: '🟢',
     stars: 5,
-    text: 'Acabei de começar o Desafio Desafiante. No dia 3 já senti que a rotina está mais clara.',
+    text: 'Acabei de começar o Desafio Explorador. No dia 3 já senti que a rotina está mais clara.',
   },
   {
     user: 'Pedro',
     emoji: '🔵',
     stars: 5,
-    text: 'Entrei no Desafio Dominante ontem. O app deixa tudo bem direto — sem enrolação.',
+    text: 'Entrei no Desafio Desafiante ontem. O app deixa tudo bem direto — sem enrolação.',
   },
   {
     user: 'Lucas',
@@ -34,7 +34,7 @@ const TESTIMONIALS = [
     user: 'Ana',
     emoji: '🌱',
     stars: 5,
-    text: 'Dia 1 no Desafio Dominante. Já marquei minhas missões e estou animada com os 90 dias.',
+    text: 'Dia 1 no Desafio Explorador. Já marquei minhas missões e estou animada com os 90 dias.',
   },
 ]
 

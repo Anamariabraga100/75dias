@@ -214,8 +214,8 @@ export function analyzeProfile(
     recommendedChallenge === 'implacavel'
       ? 'Desafio Implacável'
       : recommendedChallenge === 'iniciante'
-        ? 'Desafio Desafiante'
-        : 'Desafio Dominante'
+        ? 'Desafio Explorador'
+        : 'Desafio Desafiante'
 
   const insights: ProfileInsights = {
     weakAreas,

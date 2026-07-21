@@ -30,11 +30,13 @@ function StreakModal({
           <p className="text-neutral-600 text-xs mt-1">Dia {programDay} do programa</p>
         </div>
         <p className="text-neutral-300 text-sm leading-relaxed text-center mb-5">
-          {days === 1
-            ? 'Você está no primeiro dia do Reset90. Cada dia de disciplina fortalece quem você está se tornando.'
-            : days >= 7
-              ? `${days} dias no programa — uma semana ou mais de investida real. Disciplina não é motivação: é repetir mesmo nos dias difíceis.`
-              : `Dia ${days} de disciplina no programa. Continue aparecendo — consistência silenciosa transforma.`}
+          {days === 0
+            ? 'Sua investida está em zero. Complete os hábitos de hoje para começar uma nova sequência — estilo Duolingo.'
+            : days === 1
+              ? 'Primeiro dia da sequência. Volte amanhã e marque de novo para não quebrar.'
+              : days >= 7
+                ? `${days} dias seguidos sem falhar. Disciplina não é motivação: é repetir mesmo nos dias difíceis.`
+                : `${days} dias seguidos de disciplina. Continue aparecendo — consistência silenciosa transforma.`}
         </p>
         <p className="text-neutral-500 text-xs text-center mb-5">
           Continue marcando seus hábitos na aba Início para manter a investida viva.
@@ -104,6 +106,7 @@ export function AppHeader() {
     dismissedNotificationIds,
     totalXp,
     disciplineShields,
+    investidaStreak,
   } = useAppStore()
   const bellRef = useRef<HTMLButtonElement>(null)
   const avatarRef = useRef<HTMLButtonElement>(null)
@@ -113,7 +116,7 @@ export function AppHeader() {
   const [xpOpen, setXpOpen] = useState(false)
 
   const programDay = getDisplayDay(challengeAccepted, currentDay)
-  const investedDays = challengeAccepted ? programDay : 0
+  const investedDays = challengeAccepted ? investidaStreak : 0
 
   const unreadCount = useMemo(
     () =>
@@ -121,6 +124,7 @@ export function AppHeader() {
         challengeAccepted,
         challengeId,
         currentDay,
+        investidaStreak,
         mirrorPhotos,
         taskChecksByDay,
         readNotificationIds,
@@ -130,6 +134,7 @@ export function AppHeader() {
       challengeAccepted,
       challengeId,
       currentDay,
+      investidaStreak,
       mirrorPhotos,
       taskChecksByDay,
       readNotificationIds,
