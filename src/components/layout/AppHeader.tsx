@@ -80,15 +80,14 @@ function HeaderStatPill({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center gap-1.5 bg-black/40 border rounded-full px-2 py-1 transition-colors ${accentClass} ${
+      aria-label={`${value} ${label}`}
+      title={`${value} ${label}`}
+      className={`inline-flex items-center gap-1 shrink-0 bg-black/40 border rounded-full pl-1.5 pr-2 py-1 transition-colors ${accentClass} ${
         onClick && !disabled ? 'hover:bg-neutral-900' : disabled ? 'opacity-50 cursor-default' : ''
       }`}
     >
-      {icon}
-      <div className="leading-tight text-left">
-        <span className="text-sm font-bold tabular-nums">{value}</span>
-        <span className="text-[8px] text-neutral-500 block whitespace-nowrap">{label}</span>
-      </div>
+      <span className="shrink-0 flex items-center justify-center">{icon}</span>
+      <span className="text-xs font-bold tabular-nums leading-none">{value}</span>
     </button>
   )
 }
@@ -156,20 +155,22 @@ export function AppHeader() {
   return (
     <>
       <header className="app-header sticky top-0 z-40 shrink-0">
-        <div className="flex items-center justify-between px-5 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 gap-2">
-          <Logo size="sm" to="/app" />
+        <div className="flex items-center gap-2 px-3 sm:px-5 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3">
+          <div className="shrink-0 min-w-0 max-w-[38%]">
+            <Logo size="sm" to="/app" />
+          </div>
 
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+          <div className="flex items-center gap-1 min-w-0 flex-1 justify-end overflow-hidden">
             {challengeAccepted && (
-              <>
+              <div className="flex items-center gap-1 min-w-0 overflow-x-auto scrollbar-hide">
                 <HeaderStatPill
-                  icon={<span className="text-sm">🔥</span>}
+                  icon={<span className="text-xs leading-none">🔥</span>}
                   value={String(investedDays)}
                   label="investida"
                   onClick={() => setStreakOpen(true)}
                 />
                 <HeaderStatPill
-                  icon={<Zap size={13} className="text-amber-400" />}
+                  icon={<Zap size={12} className="text-amber-400" />}
                   value={formatXp(totalXp)}
                   label="XP"
                   accent="amber"
@@ -177,14 +178,14 @@ export function AppHeader() {
                 />
                 {disciplineShields > 0 && (
                   <HeaderStatPill
-                    icon={<Shield size={13} className="text-sky-400" />}
+                    icon={<Shield size={12} className="text-sky-400" />}
                     value={String(disciplineShields)}
                     label="escudo"
                     accent="sky"
                     onClick={() => setXpOpen(true)}
                   />
                 )}
-              </>
+              </div>
             )}
 
             <button
@@ -193,15 +194,15 @@ export function AppHeader() {
               onClick={toggleNotifications}
               aria-expanded={notificationsOpen}
               aria-label="Notificações"
-              className={`relative w-9 h-9 rounded-xl border flex items-center justify-center transition-colors shrink-0 ${
+              className={`relative w-8 h-8 rounded-xl border flex items-center justify-center transition-colors shrink-0 ${
                 notificationsOpen
                   ? 'bg-neutral-800 border-neutral-600'
                   : 'bg-black/40 border-neutral-700/80 hover:bg-neutral-900'
               }`}
             >
-              <Bell size={18} className="text-neutral-300" />
+              <Bell size={16} className="text-neutral-300" />
               {hasUnread && !notificationsOpen && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-orange rounded-full" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent-orange rounded-full" />
               )}
             </button>
 

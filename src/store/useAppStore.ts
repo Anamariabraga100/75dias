@@ -415,14 +415,35 @@ export const useAppStore = create<AppState>()(
       },
       checkInvestidaStreak: () => {
         const state = get()
-        const { patch, changed, hardResetProgram } = evaluateInvestidaOnOpen(state)
-        if (!changed) return
+        // Corrige salto indevido para Dia 2+ sem nenhum hábito marcado (bug do merge invested_days).
+        const hasAnyHabit = Object.values(state.taskChecksByDay).some((day) =>
+          Object.values(day).some(Boolean)
+        )
+        const hasPhotos = Object.keys(state.mirrorPhotos).length > 0
+        if (
+          state.challengeAccepted &&
+          normalizeProgramDay(state.currentDay) > 1 &&
+          !state.dayCompletedAt &&
+          !hasAnyHabit &&
+          !hasPhotos
+        ) {
+          set({ currentDay: 1 })
+        }
+
+        const next = get()
+        const { patch, changed, hardResetProgram } = evaluateInvestidaOnOpen(next)
+        if (!changed) {
+          if (normalizeProgramDay(state.currentDay) > 1 && normalizeProgramDay(get().currentDay) === 1) {
+            scheduleProfileSync()
+            void flushProfileSync()
+          }
+          return
+        }
         set({
           ...patch,
           ...(hardResetProgram ? getHardcoreProgramResetPatch() : {}),
         })
         scheduleProfileSync()
-        // Persistir consumo de escudo / reset hardcore na nuvem
         if (hardResetProgram || patch.investidaNotice?.type === 'shield_saved') {
           void flushProfileSync()
         }

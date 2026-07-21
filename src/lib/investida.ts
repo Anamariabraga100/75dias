@@ -95,19 +95,14 @@ export function evaluateInvestidaOnOpen(
 
   const gap = calendarDaysBetween(last, today)
 
-  // Hoje ou ontem: ainda no prazo (como Duolingo até o fim do dia)
+  // Hoje ou ontem: ainda no prazo (como Duolingo até o fim do dia / meia-noite)
   if (gap <= 1) {
-    const seededStreak =
-      state.investidaStreak > 0
-        ? state.investidaStreak
-        : Math.max(1, Math.min(90, state.currentDay || 1))
-
-    if (last !== state.lastInvestidaDate || seededStreak !== state.investidaStreak) {
+    // Só migra lastInvestidaDate — NÃO inventa streak a partir do dia do programa
+    // (isso fazia o progresso “pular” e investida subir sem completar).
+    if (last !== state.lastInvestidaDate) {
       return {
         patch: {
           lastInvestidaDate: last,
-          investidaStreak: seededStreak,
-          // Não apaga aviso de escudo/quebra desta sessão
           investidaNotice: state.investidaNotice,
         },
         changed: true,

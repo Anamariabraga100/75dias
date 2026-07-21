@@ -32,12 +32,18 @@ export function BackButton({ to, onClick, className = '' }: BackButtonProps) {
 }
 
 export function Logo({ size = 'md', to }: { size?: 'sm' | 'md' | 'lg'; to?: string }) {
-  const sizes = { sm: 'text-lg', md: 'text-xl', lg: 'text-2xl' }
-  const content = <span className={`logo-text ${sizes[size]}`}>RESET90</span>
+  const sizes = { sm: 'text-base sm:text-lg', md: 'text-xl', lg: 'text-2xl' }
+  const content = (
+    <span className={`logo-text ${sizes[size]} truncate block max-w-full`}>RESET90</span>
+  )
 
   if (to) {
     return (
-      <Link to={to} className="hover:opacity-90 transition-opacity" aria-label="Ir para Início">
+      <Link
+        to={to}
+        className="hover:opacity-90 transition-opacity min-w-0 max-w-full block"
+        aria-label="Ir para Início"
+      >
         {content}
       </Link>
     )

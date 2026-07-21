@@ -43,23 +43,24 @@ function buildCloudProgressSnapshot(
 ): DailyProgressSnapshot {
   const cloudChallengeId = isChallengeId(row.challenge_id) ? row.challenge_id : null
   const columnXp = typeof row.total_xp === 'number' ? row.total_xp : 0
+  // invested_days = investida (calendário). Nunca usar como dia do programa.
+  const columnDay = normalizeProgramDay(row.current_day ?? 1)
+  const columnInvestida =
+    typeof row.invested_days === 'number' ? Math.max(0, row.invested_days) : 0
 
   if (cloudProgress) {
     return {
       ...cloudProgress,
-      currentDay: maxDay(
-        cloudProgress.currentDay,
-        row.current_day ?? 1,
-        row.invested_days ?? 1
-      ),
+      currentDay: maxDay(cloudProgress.currentDay, columnDay),
       challengeAccepted: row.challenge_accepted || cloudProgress.challengeAccepted,
       challengeId: cloudChallengeId ?? cloudProgress.challengeId,
       totalXp: Math.max(cloudProgress.totalXp, columnXp),
+      investidaStreak: Math.max(cloudProgress.investidaStreak, columnInvestida),
     }
   }
 
   return {
-    currentDay: maxDay(row.current_day ?? 1, row.invested_days ?? 1),
+    currentDay: columnDay,
     challengeAccepted: row.challenge_accepted,
     challengeId: cloudChallengeId,
     taskChecksByDay: {},
@@ -73,7 +74,7 @@ function buildCloudProgressSnapshot(
     disciplineShields: 0,
     readScienceCardIds: [],
     seenTierUnlockModals: [],
-    investidaStreak: 0,
+    investidaStreak: columnInvestida,
     lastInvestidaDate: null,
   }
 }
